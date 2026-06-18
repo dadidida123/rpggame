@@ -1,0 +1,2679 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>幻境冒險：無盡之途 RPG - 轉生升級版</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Changa+One&family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0b0f19;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        .pixel-corners {
+            image-rendering: pixelated;
+        }
+        /* 按鈕點擊縮放 */
+        .btn-active:active {
+            transform: scale(0.95);
+        }
+        /* 隱藏捲軸 */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex items-center justify-center p-0 md:p-4 text-white">
+
+    <!-- 遊戲主容器 -->
+    <div id="game-container" class="relative w-full max-w-5xl h-full md:h-[650px] bg-slate-950 rounded-none md:rounded-2xl border-0 md:border-4 border-slate-850 shadow-2xl flex flex-col overflow-hidden">
+        
+        <!-- 頂部資訊欄 (HUD) -->
+        <div id="hud-bar" class="absolute top-0 left-0 right-0 p-3 z-10 flex flex-wrap gap-2 justify-between items-center bg-gradient-to-b from-slate-950/95 to-transparent pointer-events-none">
+            <!-- 玩家基礎資訊 -->
+            <div class="flex items-center space-x-3 pointer-events-auto">
+                <div class="relative">
+                    <div class="w-12 h-12 rounded-full border-2 border-amber-400 bg-slate-900 flex items-center justify-center text-xl font-bold text-amber-300 shadow-md">
+                        <span id="hud-level">1</span>
+                    </div>
+                    <span class="absolute -bottom-1 -right-1 bg-red-600 text-[10px] px-1 rounded font-black text-white">LV</span>
+                </div>
+                <!-- 血條與魔條 -->
+                <div class="flex flex-col space-y-1 w-32 sm:w-44">
+                    <!-- HP -->
+                    <div class="relative w-full h-5 bg-slate-950 rounded border border-slate-800 overflow-hidden shadow-inner">
+                        <div id="hud-hp-bar" class="h-full bg-gradient-to-r from-red-600 to-rose-500 transition-all duration-100" style="width: 100%;"></div>
+                        <div id="hud-shield-bar" class="absolute top-0 left-0 h-full bg-cyan-400/40 transition-all duration-100" style="width: 0%;"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
+                            HP: <span id="hud-hp-text">100/100</span>
+                        </div>
+                    </div>
+                    <!-- MP -->
+                    <div class="relative w-full h-4 bg-slate-950 rounded border border-slate-800 overflow-hidden shadow-inner">
+                        <div id="hud-mp-bar" class="h-full bg-gradient-to-r from-blue-600 to-cyan-500 transition-all duration-100" style="width: 100%;"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white">
+                            MP: <span id="hud-mp-text">50/50</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 經驗、金幣、距離資訊 -->
+            <div class="flex items-center space-x-2 sm:space-x-3 pointer-events-auto">
+                <!-- 經驗值 -->
+                <div class="hidden md:flex flex-col space-y-0.5 w-20">
+                    <span class="text-[10px] text-slate-400 font-semibold text-right">經驗值</span>
+                    <div class="relative w-full h-2 bg-slate-950 rounded border border-slate-800 overflow-hidden">
+                        <div id="hud-exp-bar" class="h-full bg-emerald-500 transition-all duration-200" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <!-- 金幣 -->
+                <div class="bg-slate-950/80 px-2 py-1.5 rounded-lg border border-slate-800 flex items-center space-x-1">
+                    <i class="fa-solid fa-coins text-amber-400"></i>
+                    <span id="hud-gold" class="font-bold text-amber-300 text-xs sm:text-sm">0</span>
+                </div>
+                <!-- 距離 -->
+                <div class="bg-slate-950/80 px-2 py-1.5 rounded-lg border border-slate-800 flex items-center space-x-1">
+                    <i class="fa-solid fa-person-running text-teal-400"></i>
+                    <span id="hud-distance" class="font-bold text-teal-300 text-xs sm:text-sm">0</span><span class="text-[10px] text-slate-400">m</span>
+                </div>
+                <!-- 暫停按鈕 -->
+                <button id="btn-pause" class="btn-active bg-slate-800 hover:bg-slate-700 text-white w-8 h-8 rounded-lg flex items-center justify-center border border-slate-600 transition">
+                    <i class="fa-solid fa-pause"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 遊戲畫布 (Canvas) -->
+        <canvas id="game-canvas" class="w-full flex-grow bg-slate-900 cursor-pointer"></canvas>
+
+        <!-- 底部控制與技能欄 -->
+        <div id="control-panel" class="bg-slate-950 border-t border-slate-800 p-2 sm:p-4 flex flex-col md:flex-row justify-between items-center gap-3 z-10">
+            <!-- 技能捷徑欄 -->
+            <div class="flex items-center space-x-2 sm:space-x-3 w-full md:w-auto justify-center">
+                <!-- 普通攻擊 -->
+                <button id="btn-attack" class="btn-active w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-b from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 rounded-xl border-2 border-slate-500 flex flex-col items-center justify-center cursor-pointer transition relative">
+                    <i class="fa-solid fa-wand-sparkles text-lg text-white"></i>
+                    <span class="text-[9px] mt-0.5 text-slate-300">攻擊 [J]</span>
+                </button>
+                <!-- 旋風斬 -->
+                <button id="btn-skill-slash" class="btn-active w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-b from-orange-700 to-red-800 hover:from-orange-600 hover:to-red-700 rounded-xl border-2 border-orange-500 flex flex-col items-center justify-center cursor-pointer transition relative">
+                    <i class="fa-solid fa-wind text-lg text-orange-200"></i>
+                    <span class="text-[9px] mt-0.5 text-orange-100">旋風 [K]</span>
+                    <span class="absolute -top-1 -right-1 bg-blue-600 text-[8px] px-1 rounded-full">15 MP</span>
+                    <div id="cooldown-slash" class="absolute inset-0 bg-slate-950/80 rounded-xl flex items-center justify-center text-xs font-bold text-white hidden">2s</div>
+                </button>
+                <!-- 火球術 -->
+                <button id="btn-skill-fire" class="btn-active w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-b from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 rounded-xl border-2 border-amber-500 flex flex-col items-center justify-center cursor-pointer transition relative">
+                    <i class="fa-solid fa-fire text-lg text-amber-200"></i>
+                    <span class="text-[9px] mt-0.5 text-amber-100">火球 [L]</span>
+                    <span class="absolute -top-1 -right-1 bg-blue-600 text-[8px] px-1 rounded-full">25 MP</span>
+                    <div id="cooldown-fire" class="absolute inset-0 bg-slate-950/80 rounded-xl flex items-center justify-center text-xs font-bold text-white hidden">3s</div>
+                </button>
+                <!-- 神聖療癒 -->
+                <button id="btn-skill-heal" class="btn-active w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-b from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 rounded-xl border-2 border-emerald-500 flex flex-col items-center justify-center cursor-pointer transition relative">
+                    <i class="fa-solid fa-circle-plus text-lg text-emerald-200"></i>
+                    <span class="text-[9px] mt-0.5 text-emerald-100">治癒 [I]</span>
+                    <span class="absolute -top-1 -right-1 bg-blue-600 text-[8px] px-1 rounded-full">30 MP</span>
+                    <div id="cooldown-heal" class="absolute inset-0 bg-slate-950/80 rounded-xl flex items-center justify-center text-xs font-bold text-white hidden">5s</div>
+                </button>
+            </div>
+
+            <!-- 功能鍵：營地商店與角色狀態 -->
+            <div class="flex items-center space-x-2 w-full md:w-auto justify-center">
+                <button id="btn-open-shop" class="btn-active flex-1 md:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center space-x-2 shadow-lg transition">
+                    <i class="fa-solid fa-tent text-base"></i>
+                    <span>營地與神殿 [B]</span>
+                </button>
+                <div class="text-xs text-slate-400 hidden lg:block text-right">
+                    <p>移動：A / D | 跳躍：W / Space</p>
+                    <p>暫停：P 或 ESC</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 行動端虛擬搖桿與操作按鍵 (僅在行動端顯示) -->
+        <div id="mobile-controls" class="absolute bottom-20 left-4 right-4 z-20 flex justify-between items-end pointer-events-none md:hidden select-none">
+            <!-- 左側：移動方向按鍵 -->
+            <div class="flex items-center space-x-2 pointer-events-auto bg-slate-950/60 p-1.5 rounded-2xl backdrop-blur-xs">
+                <button id="btn-move-left" class="w-12 h-12 bg-slate-800/80 active:bg-slate-700 text-white rounded-xl border border-slate-600 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button id="btn-move-right" class="w-12 h-12 bg-slate-800/80 active:bg-slate-700 text-white rounded-xl border border-slate-600 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+            <!-- 右側：跳躍按鍵 -->
+            <div class="pointer-events-auto bg-slate-950/60 p-1.5 rounded-2xl backdrop-blur-xs">
+                <button id="btn-move-jump" class="w-12 h-12 bg-sky-700/80 active:bg-sky-600 text-white rounded-full border border-sky-400 flex items-center justify-center text-xl shadow-lg">
+                    <i class="fa-solid fa-angles-up"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 開始畫面 Overlay -->
+        <div id="start-overlay" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-50">
+            <h1 class="text-3xl md:text-5xl font-extrabold tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-red-500 bg-clip-text text-transparent drop-shadow-md animate-pulse mb-3">
+                幻境冒險：無盡之途
+            </h1>
+            <p class="text-xs md:text-sm text-slate-400 mb-4 max-w-md">
+                「新增轉生天賦與多樣化怪物 AI 版本」<br>操控勇者一路向右突破重圍，擊敗邪惡魔物，在死亡時轉生、覺醒強大天賦！
+            </p>
+            
+            <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 mb-6 text-left w-full max-w-md">
+                <h3 class="text-xs font-bold text-amber-400 mb-2 border-b border-slate-800 pb-1 flex justify-between">
+                    <span><i class="fa-solid fa-gamepad mr-1"></i> 冒險控制指引</span>
+                    <span id="start-rebirth-indicator" class="text-emerald-400"></span>
+                </h3>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-300">
+                    <div><b class="text-white">A / D / 左右鍵:</b> 移動背景</div>
+                    <div><b class="text-white">W / 空白鍵:</b> 跳躍</div>
+                    <div><b class="text-white">J 鍵:</b> 揮刀物理攻擊</div>
+                    <div><b class="text-white">K / L / I:</b> 釋放強力技能</div>
+                    <div><b class="text-white">B 鍵:</b> 營地與轉生神殿</div>
+                    <div><b class="text-white">P / ESC 鍵:</b> 隨時暫停遊戲</div>
+                </div>
+            </div>
+
+            <button id="btn-start" class="btn-active px-8 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-slate-950 font-black text-base rounded-xl shadow-xl hover:scale-105 transition duration-200">
+                開啟新征途 <i class="fa-solid fa-play ml-1"></i>
+            </button>
+        </div>
+
+        <!-- 暫停畫面 Overlay -->
+        <div id="pause-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-50 hidden">
+            <div class="bg-slate-900 border-2 border-slate-700 p-6 rounded-2xl max-w-xs w-full shadow-2xl flex flex-col space-y-4">
+                <h2 class="text-2xl font-black text-amber-400 animate-pulse"><i class="fa-solid fa-circle-pause mr-1"></i> 冒險暫停中</h2>
+                <p class="text-xs text-slate-400">勇者稍作歇息，準備好後隨時能繼續前行</p>
+                <button id="btn-resume" class="btn-active py-2 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-bold rounded-lg transition text-sm">
+                    繼續冒險 <i class="fa-solid fa-play ml-1"></i>
+                </button>
+                <button id="btn-pause-shop" class="btn-active py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold rounded-lg transition text-sm">
+                    開啟營地商店 [B]
+                </button>
+            </div>
+        </div>
+
+        <!-- 營地商店與轉生天賦神殿 Overlay (雙 Tab 控制) -->
+        <div id="shop-overlay" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 z-40 hidden">
+            <div class="w-full max-w-xl bg-slate-900 rounded-2xl border-2 border-amber-500/50 p-5 shadow-2xl relative flex flex-col max-h-[95%]">
+                
+                <!-- 商店/神殿 Tab 切換 -->
+                <div class="flex border-b border-slate-800 pb-2 mb-4 space-x-2">
+                    <button id="tab-shop-btn" class="flex-1 py-2 text-center font-bold text-sm rounded-lg bg-amber-500 text-slate-950 transition flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-tent"></i>
+                        <span>冒險者營地</span>
+                    </button>
+                    <button id="tab-rebirth-btn" class="flex-1 py-2 text-center font-bold text-sm rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-gavel"></i>
+                        <span>轉生神殿天賦</span>
+                    </button>
+                    <button id="btn-close-shop" class="w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- TAB 1: 營地商店 -->
+                <div id="tab-shop-content" class="flex flex-col flex-grow overflow-hidden">
+                    <!-- 目前玩家數值與財富 -->
+                    <div class="grid grid-cols-3 gap-2 mb-4 bg-slate-950 p-2 rounded-lg border border-slate-850 text-xs">
+                        <div class="text-center">
+                            <span class="block text-slate-400">目前金幣</span>
+                            <span class="font-bold text-amber-300 text-xs"><i class="fa-solid fa-coins mr-1"></i><span id="shop-gold">0</span></span>
+                        </div>
+                        <div class="text-center border-x border-slate-850">
+                            <span class="block text-slate-400">角色攻擊力</span>
+                            <span class="font-bold text-red-400 text-xs"><i class="fa-solid fa-sword mr-1"></i><span id="shop-atk">15</span></span>
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-slate-400">角色防禦力</span>
+                            <span class="font-bold text-sky-400 text-xs"><i class="fa-solid fa-shield mr-1"></i><span id="shop-def">5</span></span>
+                        </div>
+                    </div>
+
+                    <!-- 商品列表 -->
+                    <div class="space-y-2 overflow-y-auto flex-grow pr-1 mb-2 max-h-[250px]">
+                        <!-- 商品 1：武器升級 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-amber-500/30 flex items-center justify-between transition">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-9 h-9 bg-rose-950/80 border border-rose-500/30 rounded-lg flex items-center justify-center text-rose-400">
+                                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">淬鍊武器 [LV <span id="shop-weapon-lv">1</span>]</h4>
+                                    <p class="text-[10px] text-slate-400">使基礎攻擊力提升 <span class="text-red-400">+6</span></p>
+                                </div>
+                            </div>
+                            <button id="btn-buy-weapon" class="btn-active px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition">
+                                <span id="shop-weapon-cost">75</span> G
+                            </button>
+                        </div>
+
+                        <!-- 商品 2：防具強化 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-amber-500/30 flex items-center justify-between transition">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-9 h-9 bg-sky-950/80 border border-sky-500/30 rounded-lg flex items-center justify-center text-sky-400">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">精鋼防具 [LV <span id="shop-armor-lv">1</span>]</h4>
+                                    <p class="text-[10px] text-slate-400">使基礎防禦力提升 <span class="text-sky-400">+3</span></p>
+                                </div>
+                            </div>
+                            <button id="btn-buy-armor" class="btn-active px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition">
+                                <span id="shop-armor-cost">60</span> G
+                            </button>
+                        </div>
+
+                        <!-- 商品 3：生命藥水 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-amber-500/30 flex items-center justify-between transition">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-9 h-9 bg-emerald-950/80 border border-emerald-500/30 rounded-lg flex items-center justify-center text-emerald-400">
+                                    <i class="fa-solid fa-bottle-droplet"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">大容量生命藥水</h4>
+                                    <p class="text-[10px] text-slate-400">回復 <span class="text-emerald-400">50 HP</span>。背包內剩餘: <span id="shop-potion-count" class="font-bold text-emerald-300">3</span> 瓶</p>
+                                </div>
+                            </div>
+                            <button id="btn-buy-potion" class="btn-active px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition">
+                                30 G
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: 轉生天賦神殿 -->
+                <div id="tab-rebirth-content" class="flex flex-col flex-grow overflow-hidden hidden">
+                    <!-- 目前天賦點與轉生說明 -->
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-850 text-xs mb-3 flex justify-between items-center">
+                        <div>
+                            <span class="block text-slate-400">持有轉生靈魂 (Souls)</span>
+                            <span class="text-[10px] text-slate-500">轉生時透過等級與距離轉化獲得</span>
+                        </div>
+                        <span class="text-xl font-black text-emerald-400"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i><span id="rebirth-souls-count">0</span></span>
+                    </div>
+
+                    <!-- 天賦樹升級清單 -->
+                    <div class="space-y-2 overflow-y-auto flex-grow pr-1 mb-2 max-h-[250px]">
+                        <!-- 天賦 1：力量精通 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-emerald-500/30 flex items-center justify-between transition">
+                            <div>
+                                <h4 class="font-bold text-xs text-emerald-300">力量精通 [LV <span id="talent-1-lv">0</span>/10]</h4>
+                                <p class="text-[10px] text-slate-400">永久提升基礎攻擊力 <span class="text-rose-400">+15% / 級</span></p>
+                            </div>
+                            <button id="btn-talent-1" class="btn-active px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition">
+                                升級 (<span id="talent-1-cost">5</span> 靈魂)
+                            </button>
+                        </div>
+
+                        <!-- 天賦 2：生命祝福 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-emerald-500/30 flex items-center justify-between transition">
+                            <div>
+                                <h4 class="font-bold text-xs text-emerald-300">生命祝福 [LV <span id="talent-2-lv">0</span>/10]</h4>
+                                <p class="text-[10px] text-slate-400">永久提升基礎生命值上限 <span class="text-emerald-400">+15% / 級</span></p>
+                            </div>
+                            <button id="btn-talent-2" class="btn-active px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition">
+                                升級 (<span id="talent-2-cost">5</span> 靈魂)
+                            </button>
+                        </div>
+
+                        <!-- 天賦 3：疾風迅捷 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-emerald-500/30 flex items-center justify-between transition">
+                            <div>
+                                <h4 class="font-bold text-xs text-emerald-300">疾風迅捷 [LV <span id="talent-3-lv">0</span>/5]</h4>
+                                <p class="text-[10px] text-slate-400">永久減少所有技能冷卻時間 <span class="text-cyan-400">-10% / 級</span></p>
+                            </div>
+                            <button id="btn-talent-3" class="btn-active px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition">
+                                升級 (<span id="talent-3-cost">8</span> 靈魂)
+                            </button>
+                        </div>
+
+                        <!-- 天賦 4：貪婪之眼 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-emerald-500/30 flex items-center justify-between transition">
+                            <div>
+                                <h4 class="font-bold text-xs text-emerald-300">貪婪之眼 [LV <span id="talent-4-lv">0</span>/10]</h4>
+                                <p class="text-[10px] text-slate-400">永久提升關卡擊殺金幣加成 <span class="text-amber-400">+20% / 級</span></p>
+                            </div>
+                            <button id="btn-talent-4" class="btn-active px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition">
+                                升級 (<span id="talent-4-cost">5</span> 靈魂)
+                            </button>
+                        </div>
+
+                        <!-- 天賦 5：鳳凰涅槃 -->
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 hover:border-emerald-500/30 flex items-center justify-between transition">
+                            <div>
+                                <h4 class="font-bold text-xs text-emerald-300">鳳凰涅槃 [LV <span id="talent-5-lv">0</span>/3]</h4>
+                                <p class="text-[10px] text-slate-400">每場冒險免費原地復活的次數 (<span class="text-orange-400">目前: 0 次</span>)</p>
+                            </div>
+                            <button id="btn-talent-5" class="btn-active px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition">
+                                升級 (<span id="talent-5-cost">15</span> 靈魂)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-[10px] text-slate-500 text-center mt-2 border-t border-slate-800 pt-2">
+                    靠近或在安全狀態下隨時可升級。按 [ESC]、[B] 鍵或右上角關閉。
+                </div>
+            </div>
+        </div>
+
+        <!-- 死亡抉擇 / 復活與轉生畫面 Overlay -->
+        <div id="end-overlay" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-50 hidden">
+            <div id="end-icon-bg" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3">
+                <i id="end-icon" class="fa-solid fa-skull"></i>
+            </div>
+            <h1 id="end-title" class="text-2xl md:text-3xl font-black mb-2 tracking-wide">
+                命運抉擇之時
+            </h1>
+            <p id="end-desc" class="text-xs text-slate-400 mb-4 max-w-sm">
+                你被邪惡的魔物擊敗了... 但靈魂尚未熄滅，你可以選擇浴火重生或是步入下一場輪迴。
+            </p>
+
+            <!-- 數據結算面版 -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 w-full max-w-xs mb-5 text-xs flex flex-col space-y-1.5">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">最終等級</span>
+                    <span id="end-stat-level" class="font-bold text-white">LV 1</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">探險距離</span>
+                    <span id="end-stat-distance" class="font-bold text-teal-400">120m</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">擊殺怪物</span>
+                    <span id="end-stat-kills" class="font-bold text-amber-400">12 隻</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-800 pt-1.5 font-bold text-emerald-400">
+                    <span>可轉換轉生靈魂</span>
+                    <span id="end-stat-souls">+0 Souls</span>
+                </div>
+            </div>
+
+            <!-- 兩條道路按鈕 -->
+            <div class="flex flex-col sm:flex-row gap-3 w-full max-w-xs justify-center">
+                <!-- 原地復活按鈕 -->
+                <button id="btn-revive" class="btn-active flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold text-sm rounded-xl shadow-lg transition flex flex-col items-center justify-center">
+                    <span class="font-black">浴火重生 <i class="fa-solid fa-wand-magic-sparkles ml-0.5"></i></span>
+                    <span id="revive-cost-text" class="text-[10px] text-orange-200 mt-0.5">需要: 0</span>
+                </button>
+                <!-- 轉生按鈕 -->
+                <button id="btn-rebirth" class="btn-active flex-1 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-sm rounded-xl shadow-lg transition flex flex-col items-center justify-center">
+                    <span class="font-black">步入輪迴 <i class="fa-solid fa-arrows-spin ml-0.5"></i></span>
+                    <span class="text-[10px] text-emerald-200 mt-0.5">重置並獲得靈魂</span>
+                </button>
+            </div>
+            
+            <button id="btn-restart" class="btn-active mt-4 text-xs text-slate-500 hover:text-slate-300 underline hidden">
+                不保存直接重新開始
+            </button>
+        </div>
+
+        <!-- 畫面通知 (Notification Box) -->
+        <div id="toast-container" class="absolute bottom-28 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none flex flex-col space-y-2"></div>
+
+    </div>
+
+    <script>
+        /* 
+           8-Bit 復古音效合成器 
+           使用 Web Audio API，不需要外部 MP3 載入，100% 網頁原生運作。
+        */
+        const AudioSynth = {
+            ctx: null,
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+
+            play(type) {
+                this.init();
+                if (!this.ctx) return;
+                
+                // 確保在使用者點擊後音訊解鎖
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                const now = this.ctx.currentTime;
+                
+                try {
+                    switch (type) {
+                        case 'jump': // 跳躍音效
+                            {
+                                const osc = this.ctx.createOscillator();
+                                const gain = this.ctx.createGain();
+                                osc.type = 'triangle';
+                                osc.frequency.setValueAtTime(150, now);
+                                osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+                                gain.gain.setValueAtTime(0.12, now);
+                                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                                osc.connect(gain);
+                                gain.connect(this.ctx.destination);
+                                osc.start();
+                                osc.stop(now + 0.15);
+                            }
+                            break;
+                        case 'hit': // 攻擊揮砍
+                            {
+                                const osc = this.ctx.createOscillator();
+                                const gain = this.ctx.createGain();
+                                osc.type = 'sawtooth';
+                                osc.frequency.setValueAtTime(140, now);
+                                osc.frequency.linearRampToValueAtTime(30, now + 0.12);
+                                gain.gain.setValueAtTime(0.18, now);
+                                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                                osc.connect(gain);
+                                gain.connect(this.ctx.destination);
+                                osc.start();
+                                osc.stop(now + 0.12);
+                            }
+                            break;
+                        case 'hurt': // 玩家/怪物受傷
+                            {
+                                const osc = this.ctx.createOscillator();
+                                const gain = this.ctx.createGain();
+                                osc.type = 'sawtooth';
+                                osc.frequency.setValueAtTime(95, now);
+                                osc.frequency.linearRampToValueAtTime(20, now + 0.18);
+                                gain.gain.setValueAtTime(0.22, now);
+                                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                                osc.connect(gain);
+                                gain.connect(this.ctx.destination);
+                                osc.start();
+                                osc.stop(now + 0.18);
+                            }
+                            break;
+                        case 'fireball': // 火球發射
+                            {
+                                const osc = this.ctx.createOscillator();
+                                const gain = this.ctx.createGain();
+                                osc.type = 'triangle';
+                                osc.frequency.setValueAtTime(350, now);
+                                osc.frequency.exponentialRampToValueAtTime(70, now + 0.22);
+                                gain.gain.setValueAtTime(0.12, now);
+                                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+                                osc.connect(gain);
+                                gain.connect(this.ctx.destination);
+                                osc.start();
+                                osc.stop(now + 0.22);
+                            }
+                            break;
+                        case 'heal': // 療癒神聖音
+                            {
+                                [440, 554, 659, 880].forEach((freq, index) => {
+                                    const osc = this.ctx.createOscillator();
+                                    const gain = this.ctx.createGain();
+                                    osc.type = 'sine';
+                                    osc.frequency.setValueAtTime(freq, now + index * 0.04);
+                                    gain.gain.setValueAtTime(0.06, now + index * 0.04);
+                                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                                    osc.connect(gain);
+                                    gain.connect(this.ctx.destination);
+                                    osc.start(now + index * 0.04);
+                                    osc.stop(now + 0.3);
+                                });
+                            }
+                            break;
+                        case 'levelup': // 升級音效
+                            {
+                                const notes = [261.6, 329.6, 392.0, 523.3, 659.3, 784.0, 1046.5];
+                                notes.forEach((freq, index) => {
+                                    const osc = this.ctx.createOscillator();
+                                    const gain = this.ctx.createGain();
+                                    osc.type = 'square';
+                                    osc.frequency.setValueAtTime(freq, now + index * 0.07);
+                                    gain.gain.setValueAtTime(0.08, now + index * 0.07);
+                                    gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.07 + 0.18);
+                                    osc.connect(gain);
+                                    gain.connect(this.ctx.destination);
+                                    osc.start(now + index * 0.07);
+                                    osc.stop(now + index * 0.07 + 0.18);
+                                });
+                            }
+                            break;
+                        case 'buy': // 購買物品
+                            {
+                                const osc1 = this.ctx.createOscillator();
+                                const osc2 = this.ctx.createOscillator();
+                                const gain1 = this.ctx.createGain();
+                                const gain2 = this.ctx.createGain();
+                                
+                                osc1.type = 'sine';
+                                osc1.frequency.setValueAtTime(987.8, now);
+                                gain1.gain.setValueAtTime(0.08, now);
+                                gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                                osc1.connect(gain1);
+                                gain1.connect(this.ctx.destination);
+                                
+                                osc2.type = 'sine';
+                                osc2.frequency.setValueAtTime(1318.5, now + 0.06);
+                                gain2.gain.setValueAtTime(0.08, now + 0.06);
+                                gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                                osc2.connect(gain2);
+                                gain2.connect(this.ctx.destination);
+                                
+                                osc1.start();
+                                osc2.start(now + 0.06);
+                                osc1.stop(now + 0.12);
+                                osc2.stop(now + 0.18);
+                            }
+                            break;
+                    }
+                } catch (e) {
+                    console.warn("Audio Synthesizer play failed:", e);
+                }
+            }
+        };
+    </script>
+
+    <script>
+        // 核心 Canvas 設定
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 調整解析度適配高DPI螢幕
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            const rect = container.getBoundingClientRect();
+            const controlPanelHeight = document.getElementById('control-panel').offsetHeight;
+            canvas.width = rect.width;
+            canvas.height = Math.max(300, (rect.height || 650) - controlPanelHeight);
+            GameState.groundY = canvas.height - 45;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+
+        // ------------------ 轉生持久化資料庫 (LocalStorage) ------------------
+        const RebirthSystem = {
+            souls: 0,
+            talents: {
+                strength: 0,  // 永久攻擊力 +15% / 級 (Max 10)
+                vigor: 0,     // 永久生命力上限 +15% / 級 (Max 10)
+                haste: 0,     // 永久減 CD 10% / 級 (Max 5)
+                greed: 0,     // 永久金幣加成 +20% / 級 (Max 10)
+                revival: 0    // 額外生命原地復活次數 (Max 3)
+            },
+
+            load() {
+                try {
+                    const saved = localStorage.getItem('rpg_rebirth_save_v2');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        this.souls = parsed.souls || 0;
+                        this.talents = { ...this.talents, ...parsed.talents };
+                    }
+                } catch (e) {
+                    console.warn("載入存檔失敗，可能本地存檔已被損毀。已建立新存檔。");
+                }
+            },
+
+            save() {
+                try {
+                    const data = {
+                        souls: this.souls,
+                        talents: this.talents
+                    };
+                    localStorage.setItem('rpg_rebirth_save_v2', JSON.stringify(data));
+                } catch (e) {
+                    console.error("儲存失敗", e);
+                }
+            }
+        };
+
+        // 載入存檔
+        RebirthSystem.load();
+
+        // ------------------ 遊戲狀態資料庫 ------------------
+        const GameState = {
+            current: 'START', // START, PLAYING, SHOP, GAMEOVER, VICTORY, PAUSED
+            distance: 0,      // 累積行進距離 (米)
+            kills: 0,         // 擊殺數
+            screenShake: 0,   // 畫面震動強度
+            
+            // 原地復活次數控制
+            usedRevivesThisRun: 0,
+            
+            // 玩家狀態
+            player: {
+                x: 150,
+                y: 0,
+                width: 50,
+                height: 65,
+                vx: 0,
+                vy: 0,
+                isJumping: false,
+                direction: 1, // 1 = 右, -1 = 左
+                animFrame: 0,
+                animTimer: 0,
+                state: 'idle', // idle, run, attack, hit, dead, slash
+                
+                // 動態多訊框傷害判定變數 (解決揮擊打空)
+                attackHitActive: false,
+                attackHitList: [], // 紀錄當前揮擊已打到的敵人，防止多段重複扣血
+
+                // 無敵防護罩
+                shieldTimer: 0, // 原地復活後無敵用
+
+                // RPG 屬性 (由轉生天賦跟裝備加權後的初始值)
+                level: 1,
+                hp: 100,
+                maxHp: 100,
+                mp: 50,
+                maxMp: 50,
+                exp: 0,
+                nextExp: 100,
+                gold: 50,
+                atk: 15,
+                def: 5,
+                
+                // 技能冷卻系統 (秒)
+                cooldowns: {
+                    slash: 0,
+                    fire: 0,
+                    heal: 0
+                },
+                cooldownDurations: {
+                    slash: 2, 
+                    fire: 3,  
+                    heal: 5   
+                },
+                
+                // 商店裝備等級
+                potions: 3,
+                weaponLevel: 1,
+                armorLevel: 1
+            },
+
+            // 實體容器
+            enemies: [],
+            projectiles: [],
+            particles: [],
+            floatingTexts: [],
+
+            // 世界設定
+            gravity: 0.6,
+            groundY: 0, 
+            scrollSpeed: 0, 
+            
+            // 背景多重平行移動位移量
+            bgOffsets: {
+                sky: 0,
+                mountains: 0,
+                forest: 0,
+                ground: 0
+            },
+
+            // 輸入監聽狀態
+            keys: {
+                left: false,
+                right: false
+            }
+        };
+
+        // ------------------ 自訂小通知系統 ------------------
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = 'bg-slate-900 border-slate-700';
+            let textClass = 'text-white';
+            
+            if (type === 'success') {
+                bgClass = 'bg-emerald-900 border-emerald-600';
+                textClass = 'text-emerald-200';
+            } else if (type === 'warning') {
+                bgClass = 'bg-red-950 border-red-750';
+                textClass = 'text-red-200';
+            } else if (type === 'levelup') {
+                bgClass = 'bg-gradient-to-r from-amber-600 to-yellow-600 border-amber-400';
+                textClass = 'text-white font-bold animate-bounce';
+            }
+
+            toast.className = `${bgClass} ${textClass} px-4 py-2 rounded-xl border shadow-lg text-xs md:text-sm flex items-center space-x-2 transition duration-300 opacity-0 transform translate-y-2 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : type === 'warning' ? 'fa-triangle-exclamation' : 'fa-bell'}"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 2500);
+        }
+
+        // ------------------ 物理與輔助碰撞函式 ------------------
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function createScreenShake(amount) {
+            GameState.screenShake = amount;
+        }
+
+        // 產生視覺粒子
+        function createExplosion(x, y, color, count = 12, size = 4) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 5;
+                GameState.particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - (Math.random() * 2), 
+                    size: size * (0.5 + Math.random()),
+                    color: color,
+                    alpha: 1,
+                    decay: 0.02 + Math.random() * 0.03,
+                    gravity: 0.1
+                });
+            }
+        }
+
+        // 產生傷害/補血飄浮數字
+        function createFloatingText(x, y, text, color = '#ffffff', isCritical = false) {
+            GameState.floatingTexts.push({
+                x: x,
+                y: y - 20,
+                text: text,
+                color: color,
+                size: isCritical ? 24 : 15,
+                font: isCritical ? '900 Changa One, sans-serif' : 'bold Noto Sans TC, sans-serif',
+                alpha: 1,
+                vy: -1.5,
+                vx: (Math.random() - 0.5) * 1.5,
+                life: 60 
+            });
+        }
+    </script>
+
+    <script>
+        // ------------------ 敵人種類 AI 設定 ------------------
+        const ENEMY_TYPES = {
+            slime: {
+                name: "彈跳小綠史萊姆",
+                hp: 30,
+                maxHp: 30,
+                atk: 8,
+                def: 1,
+                speed: 1.0,
+                gold: 15,
+                exp: 20,
+                color: '#22c55e', 
+                size: 32,
+                behavior: 'bounce' // 跳躍 AI
+            },
+            goblin: {
+                name: "哥布林突襲者",
+                hp: 60,
+                maxHp: 60,
+                atk: 14,
+                def: 3,
+                speed: 1.5,
+                gold: 30,
+                exp: 40,
+                color: '#84cc16', 
+                size: 45,
+                behavior: 'charge' // 接近蓄力衝鋒 AI
+            },
+            skeleton: {
+                name: "骷髏精銳射手",
+                hp: 85,
+                maxHp: 85,
+                atk: 16,
+                def: 5,
+                speed: 0.9,
+                gold: 55,
+                exp: 70,
+                color: '#cbd5e1', 
+                size: 52,
+                behavior: 'shoot' // 遠程射箭 AI
+            },
+            mage: {
+                name: "暗影秘術大導師",
+                hp: 120,
+                maxHp: 120,
+                atk: 24,
+                def: 4,
+                speed: 1.2,
+                gold: 100,
+                exp: 150,
+                color: '#c084fc', 
+                size: 55,
+                behavior: 'teleport_magic' // 閃現與追蹤術 AI
+            },
+            boss_dragon: {
+                name: "深淵裂焰滅世巨龍 [BOSS]",
+                hp: 800,
+                maxHp: 800,
+                atk: 50,
+                def: 18,
+                speed: 0.5,
+                gold: 500,
+                exp: 1000,
+                color: '#ef4444', 
+                size: 135,
+                behavior: 'boss' // 複合首領大招組 AI
+            }
+        };
+
+        function spawnEnemy(typeKey, xOverride = null) {
+            const template = ENEMY_TYPES[typeKey];
+            if (!template) return;
+
+            // 隨行進距離等比微調怪物質
+            const scale = 1 + (GameState.distance / 1200) * 0.4;
+            const isBoss = typeKey === 'boss_dragon';
+
+            const enemyX = xOverride !== null ? xOverride : canvas.width + Math.random() * 80;
+            const enemyY = GameState.groundY - template.size;
+
+            GameState.enemies.push({
+                type: typeKey,
+                name: template.name,
+                x: enemyX,
+                y: enemyY,
+                width: template.size * (isBoss ? 1.4 : 0.9),
+                height: template.size,
+                vx: -template.speed,
+                vy: 0,
+                isJumping: false,
+                hp: Math.floor(template.hp * (isBoss ? 1 : scale)),
+                maxHp: Math.floor(template.maxHp * (isBoss ? 1 : scale)),
+                atk: Math.floor(template.atk * scale),
+                def: Math.floor(template.def * scale),
+                gold: Math.floor(template.gold * scale),
+                exp: Math.floor(template.exp * scale),
+                color: template.color,
+                behavior: template.behavior,
+                state: 'move', // move, charge, action, hit, dead
+                animFrame: 0,
+                animTimer: 0,
+                hitCooldown: 0,
+                shootTimer: 0,
+                
+                // AI 特用計時器
+                aiTimer: 0,
+                isBoss: isBoss
+            });
+            
+            if (isBoss) {
+                showToast("【巨魔甦醒】深淵烈焰滅世巨龍已在前方封鎖道路！擊倒牠即獲得和平！", "warning");
+            }
+        }
+
+        // 自動生成機制
+        let spawnTimer = 0;
+        function updateEnemySpawning() {
+            if (GameState.current !== 'PLAYING') return;
+            
+            // 是否抵達首領戰距離
+            if (GameState.distance >= 1500) {
+                const hasBoss = GameState.enemies.some(e => e.isBoss);
+                if (!hasBoss && GameState.distance < 1600) {
+                    spawnEnemy('boss_dragon', canvas.width + 120);
+                }
+                return; // Boss 戰中不再大量生成一般怪
+            }
+
+            spawnTimer++;
+            if (spawnTimer > 130) { // 約每2秒多生怪
+                spawnTimer = 0;
+                
+                if (GameState.enemies.length < 4) {
+                    const d = GameState.distance;
+                    let choices = ['slime'];
+                    
+                    if (d > 250) choices.push('goblin');
+                    if (d > 550) choices.push('skeleton');
+                    if (d > 900) choices.push('mage');
+                    
+                    const randomType = choices[Math.floor(Math.random() * choices.length)];
+                    spawnEnemy(randomType);
+                }
+            }
+        }
+    </script>
+
+    <script>
+        // ------------------ 1. 繪製多層次背景 ------------------
+        function drawBackground() {
+            // A. 天空漸層
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#060814');
+            skyGrad.addColorStop(0.5, '#131131');
+            skyGrad.addColorStop(1, '#240f31');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 月亮
+            ctx.beginPath();
+            ctx.arc(canvas.width - 150, 80, 40, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(254, 240, 138, 0.08)';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(canvas.width - 150, 80, 26, 0, Math.PI * 2);
+            ctx.fillStyle = '#fef08a';
+            ctx.fill();
+
+            // B. 遠山背景層
+            ctx.fillStyle = '#171124';
+            const mOffset = GameState.bgOffsets.mountains;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let i = 0; i <= canvas.width + 100; i += 80) {
+                const x = i - (mOffset % 80);
+                const y = (GameState.groundY - 140) + Math.sin(i * 0.006) * 35 + Math.cos(i * 0.012) * 15;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.fill();
+
+            // C. 迷霧森林層
+            ctx.fillStyle = '#101625';
+            const fOffset = GameState.bgOffsets.forest;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let i = 0; i <= canvas.width + 100; i += 40) {
+                const x = i - (fOffset % 40);
+                const y = (GameState.groundY - 80) + Math.sin(i * 0.02) * 15 + (i % 3 === 0 ? -20 : 0);
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.fill();
+
+            // 繪製近景像素樹木
+            ctx.fillStyle = '#080d1a';
+            for (let i = 0; i < canvas.width + 320; i += 320) {
+                const treeX = i - (fOffset % 320);
+                if (treeX > -100 && treeX < canvas.width + 100) {
+                    drawProceduralTree(treeX, GameState.groundY, 70);
+                }
+            }
+        }
+
+        function drawProceduralTree(x, y, height) {
+            ctx.fillStyle = '#080d1a';
+            ctx.fillRect(x - 5, y - height, 10, height);
+            ctx.beginPath();
+            ctx.moveTo(x - 28, y - height + 10);
+            ctx.lineTo(x + 28, y - height + 10);
+            ctx.lineTo(x, y - height - 25);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // ------------------ 2. 繪製精緻的玩家勇者 ------------------
+        function drawPlayer() {
+            const p = GameState.player;
+            ctx.save();
+            
+            // 轉向
+            ctx.translate(p.x + p.width / 2, p.y + p.height / 2);
+            ctx.scale(p.direction, 1);
+
+            let bobY = 0;
+            if (p.state === 'run') {
+                bobY = Math.sin(p.animFrame * 0.6) * 4;
+            }
+
+            // 腳底陰影
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(0, p.height / 2 - 2, 18, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 原地復活無敵護罩特效 (閃爍青藍色半透圓形)
+            if (p.shieldTimer > 0) {
+                ctx.strokeStyle = `rgba(34, 211, 238, ${0.4 + Math.sin(p.shieldTimer * 0.2) * 0.3})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, 36, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // 披風
+            ctx.fillStyle = '#be123c'; 
+            ctx.beginPath();
+            const capeWave = p.state === 'run' ? Math.sin(p.animFrame * 0.4) * 8 : 0;
+            ctx.moveTo(-10, -8 + bobY);
+            ctx.lineTo(-26 - (p.state === 'run' ? 5 : 0), 12 + bobY + capeWave);
+            ctx.lineTo(-5, 18 + bobY);
+            ctx.closePath();
+            ctx.fill();
+
+            // 身體護甲
+            ctx.fillStyle = '#334155'; 
+            ctx.fillRect(-12, -8 + bobY, 24, 22);
+
+            // 腳部
+            ctx.fillStyle = '#1e293b';
+            if (p.state === 'run') {
+                const legAngle = Math.sin(p.animFrame * 0.5) * 10;
+                ctx.fillRect(-9, 14 + bobY, 6, 7 + legAngle);
+                ctx.fillRect(3, 14 + bobY, 6, 7 - legAngle);
+            } else {
+                ctx.fillRect(-9, 14 + bobY, 6, 7);
+                ctx.fillRect(3, 14 + bobY, 6, 7);
+            }
+
+            // 頭盔
+            ctx.fillStyle = '#475569'; 
+            ctx.beginPath();
+            ctx.arc(0, -20 + bobY, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 護眼發光
+            ctx.fillStyle = p.state === 'hit' ? '#f43f5e' : '#22d3ee'; 
+            ctx.fillRect(3, -22 + bobY, 7, 3);
+
+            // 金飾
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillRect(-1, -31 + bobY, 3, 3);
+
+            // 盾牌
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-15, -4 + bobY);
+            ctx.lineTo(-6, -4 + bobY);
+            ctx.lineTo(-6, 9 + bobY);
+            ctx.lineTo(-10.5, 14 + bobY);
+            ctx.lineTo(-15, 9 + bobY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 巨型武器單手劍
+            ctx.save();
+            ctx.translate(6, 4 + bobY);
+            
+            let swordAngle = 0.3; 
+            if (p.state === 'attack') {
+                swordAngle = 1.6 - (p.animFrame * 0.35); // 動態砍擊
+            } else if (p.state === 'slash') {
+                swordAngle = (p.animFrame * 0.7); // 360 度大旋轉
+            }
+            ctx.rotate(swordAngle);
+
+            // 劍身
+            ctx.fillStyle = p.weaponLevel > 1 ? '#fef08a' : '#cbd5e1'; 
+            ctx.fillRect(0, -29, 6, 29);
+            
+            // 劍尖
+            ctx.beginPath();
+            ctx.moveTo(0, -29);
+            ctx.lineTo(3, -34);
+            ctx.lineTo(6, -29);
+            ctx.closePath();
+            ctx.fill();
+
+            // 劍格與握柄
+            ctx.fillStyle = '#b45309'; 
+            ctx.fillRect(-3, -2, 12, 3); 
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(1, 1, 4, 7); 
+
+            ctx.restore();
+            ctx.restore();
+        }
+
+        // ------------------ 3. 繪製各具特色的怪物 ------------------
+        function drawEnemy(e) {
+            ctx.save();
+            
+            let drawColor = e.color;
+            if (e.hitCooldown > 0) {
+                drawColor = '#ef4444'; // 受擊閃紅
+            }
+
+            // 陰影
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(e.x + e.width / 2, e.y + e.height - 2, e.width / 2.3, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (e.type === 'slime') {
+                // 史萊姆彈跳拉伸
+                let stretch = 0;
+                if (e.vy !== 0) {
+                    stretch = -0.15; // 空中拉長
+                } else {
+                    stretch = Math.sin(e.animFrame * 0.45) * 0.1; // 呼吸起伏
+                }
+                const wMod = e.width * (1 + stretch);
+                const hMod = e.height * (1 - stretch);
+                const xMod = e.x + (e.width - wMod) / 2;
+                const yMod = e.y + (e.height - hMod);
+
+                ctx.fillStyle = drawColor;
+                ctx.beginPath();
+                ctx.ellipse(xMod + wMod/2, yMod + hMod/2, wMod/2, hMod/2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 眼神
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(xMod + wMod * 0.35, yMod + hMod * 0.4, 3, 3);
+                ctx.fillRect(xMod + wMod * 0.65, yMod + hMod * 0.4, 3, 3);
+            } 
+            else if (e.type === 'goblin') {
+                // 哥布林
+                ctx.fillStyle = drawColor;
+                ctx.fillRect(e.x + 8, e.y + 12, e.width - 16, e.height - 12);
+                
+                // 蓄力狀態閃爍
+                if (e.state === 'charge') {
+                    ctx.fillStyle = `rgba(251, 191, 36, ${0.4 + Math.sin(e.aiTimer*0.5)*0.3})`;
+                    ctx.fillRect(e.x + 6, e.y + 10, e.width - 12, e.height - 10);
+                }
+
+                ctx.fillStyle = drawColor;
+                ctx.beginPath();
+                ctx.arc(e.x + e.width/2, e.y + 12, 11, 0, Math.PI*2);
+                ctx.fill();
+
+                // 尖耳
+                ctx.beginPath();
+                ctx.moveTo(e.x + e.width/2 - 9, e.y + 10);
+                ctx.lineTo(e.x + e.width/2 - 20, e.y + 3);
+                ctx.lineTo(e.x + e.width/2 - 7, e.y + 13);
+                ctx.closePath();
+                ctx.fill();
+
+                // 邪惡黃眼
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(e.x + e.width/2 - 6, e.y + 9, 3, 3);
+                ctx.fillRect(e.x + e.width/2 + 2, e.y + 9, 3, 3);
+
+                // 武器 (狼牙棒)
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(e.x - 4, e.y + e.height - 16, 12, 4);
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(e.x - 11, e.y + e.height - 22, 7, 10);
+            } 
+            else if (e.type === 'skeleton') {
+                // 骷髏射手
+                ctx.fillStyle = drawColor;
+                // 骷髏頭
+                ctx.fillRect(e.x + e.width/2 - 9, e.y + 2, 18, 16);
+                // 骨架
+                ctx.fillRect(e.x + e.width/2 - 2.5, e.y + 18, 5, 10);
+                ctx.fillRect(e.x + 5, e.y + 28, e.width - 10, 4);
+                ctx.fillRect(e.x + e.width/2 - 3, e.y + 32, 6, 12);
+                // 雙足
+                ctx.fillRect(e.x + 7, e.y + 44, 3, e.height - 44);
+                ctx.fillRect(e.x + e.width - 10, e.y + 44, 3, e.height - 44);
+
+                // 眼窩
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(e.x + e.width/2 - 6, e.y + 6, 3, 4);
+                ctx.fillRect(e.x + e.width/2 + 2, e.y + 6, 3, 4);
+
+                // 弓
+                ctx.strokeStyle = '#d97706';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(e.x - 4, e.y + 25, 15, -Math.PI/2, Math.PI/2);
+                ctx.stroke();
+            } 
+            else if (e.type === 'mage') {
+                // 暗影法師 (巫師袍與法杖)
+                ctx.fillStyle = drawColor; // 紫袍
+                ctx.beginPath();
+                ctx.moveTo(e.x + e.width/2, e.y);
+                ctx.lineTo(e.x + 4, e.y + e.height);
+                ctx.lineTo(e.x + e.width - 4, e.y + e.height);
+                ctx.closePath();
+                ctx.fill();
+
+                // 黑暗斗篷兜帽
+                ctx.fillStyle = '#1e1b4b';
+                ctx.beginPath();
+                ctx.arc(e.x + e.width/2, e.y + 14, 11, 0, Math.PI*2);
+                ctx.fill();
+
+                // 神秘發光眼
+                ctx.fillStyle = '#a855f7';
+                ctx.fillRect(e.x + e.width/2 - 5, e.y + 12, 3, 3);
+                ctx.fillRect(e.x + e.width/2 + 2, e.y + 12, 3, 3);
+
+                // 法杖
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(e.x + e.width - 3, e.y + 6, 4, e.height - 6);
+                ctx.fillStyle = '#c084fc'; // 紫色寶石
+                ctx.beginPath();
+                ctx.arc(e.x + e.width - 1, e.y + 4, 6, 0, Math.PI*2);
+                ctx.fill();
+            }
+            else if (e.type === 'boss_dragon') {
+                // 首領魔龍
+                ctx.fillStyle = drawColor;
+                ctx.beginPath();
+                ctx.ellipse(e.x + e.width/2, e.y + e.height - 42, e.width/2.4, e.height/2.8, 0, 0, Math.PI*2);
+                ctx.fill();
+
+                // 翅膀拍擊
+                ctx.fillStyle = '#881337';
+                const wingWave = Math.sin(e.animFrame * 0.25) * 14;
+                ctx.beginPath();
+                ctx.moveTo(e.x + e.width/2 - 15, e.y + 35);
+                ctx.lineTo(e.x - 35, e.y - 12 + wingWave);
+                ctx.lineTo(e.x - 8, e.y + 28);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(e.x + e.width/2 + 15, e.y + 35);
+                ctx.lineTo(e.x + e.width + 35, e.y - 12 + wingWave);
+                ctx.lineTo(e.x + e.width + 8, e.y + 28);
+                ctx.closePath();
+                ctx.fill();
+
+                // 巨頸
+                ctx.fillStyle = drawColor;
+                ctx.fillRect(e.x + e.width - 45, e.y + 15, 28, 35);
+                ctx.beginPath();
+                ctx.arc(e.x + e.width - 32, e.y + 15, 22, 0, Math.PI*2);
+                ctx.fill();
+
+                // 巨喙
+                ctx.fillRect(e.x + e.width - 22, e.y + 12, 25, 13);
+
+                // 金角
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.moveTo(e.x + e.width - 42, e.y - 1);
+                ctx.lineTo(e.x + e.width - 65, e.y - 12);
+                ctx.lineTo(e.x + e.width - 38, e.y + 6);
+                ctx.closePath();
+                ctx.fill();
+
+                // 火眼
+                ctx.fillStyle = '#ea580c';
+                ctx.fillRect(e.x + e.width - 28, e.y + 6, 7, 7);
+            }
+
+            // ------------------ 怪物血條 ------------------
+            const barW = e.width * 0.9;
+            const barH = 5;
+            const barX = e.x + (e.width - barW) / 2;
+            const barY = e.y - 10;
+
+            ctx.fillStyle = 'rgba(15,23,42,0.85)';
+            ctx.fillRect(barX, barY, barW, barH);
+
+            const hpRatio = Math.max(0, e.hp / e.maxHp);
+            ctx.fillStyle = e.isBoss ? '#ef4444' : '#f97316';
+            ctx.fillRect(barX, barY, barW * hpRatio, barH);
+            
+            // 名字
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = '10px Noto Sans TC, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(e.name, e.x + e.width/2, e.y - 15);
+
+            ctx.restore();
+        }
+
+        // ------------------ 4. 繪製彈幕與技能特效 ------------------
+        function drawProjectiles() {
+            GameState.projectiles.forEach(p => {
+                ctx.save();
+                if (p.type === 'fireball') {
+                    const radGrad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, p.size);
+                    radGrad.addColorStop(0, '#ffffff');
+                    radGrad.addColorStop(0.3, '#f59e0b');
+                    radGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                    
+                    ctx.fillStyle = radGrad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                } 
+                else if (p.type === 'arrow') {
+                    // 箭矢
+                    ctx.strokeStyle = '#f1f5f9';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - 12 * Math.sign(p.vx), p.y);
+                    ctx.stroke();
+                }
+                else if (p.type === 'shadow_orb') {
+                    // 暗影追蹤魔法球
+                    const radGrad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, p.size);
+                    radGrad.addColorStop(0, '#f3e8ff');
+                    radGrad.addColorStop(0.4, '#a855f7');
+                    radGrad.addColorStop(1, 'rgba(75, 85, 99, 0)');
+                    
+                    ctx.fillStyle = radGrad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 1.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (p.type === 'dragon_fire') {
+                    // 魔龍地獄黑火
+                    const radGrad = ctx.createRadialGradient(p.x, p.y, 3, p.x, p.y, p.size);
+                    radGrad.addColorStop(0, '#fecdd3');
+                    radGrad.addColorStop(0.4, '#ef4444');
+                    radGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    
+                    ctx.fillStyle = radGrad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 1.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (p.type === 'meteor') {
+                    // 墜落隕石
+                    const radGrad = ctx.createRadialGradient(p.x, p.y, 4, p.x, p.y, p.size);
+                    radGrad.addColorStop(0, '#fffbeb');
+                    radGrad.addColorStop(0.4, '#f97316');
+                    radGrad.addColorStop(1, 'rgba(220, 38, 38, 0)');
+                    
+                    ctx.fillStyle = radGrad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            });
+        }
+
+        // ------------------ 5. 繪製粒子特效 ------------------
+        function drawParticles() {
+            GameState.particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        // ------------------ 6. 繪製損害漂浮字體 ------------------
+        function drawFloatingTexts() {
+            ctx.save();
+            GameState.floatingTexts.forEach(t => {
+                ctx.globalAlpha = t.alpha;
+                ctx.fillStyle = t.color;
+                ctx.font = t.font;
+                ctx.textAlign = 'center';
+                
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.strokeText(t.text, t.x, t.y);
+                ctx.fillText(t.text, t.x, t.y);
+            });
+            ctx.restore();
+        }
+    </script>
+
+    <script>
+        // ------------------ 核心運算主邏輯 ------------------
+        function update() {
+            // A. 如果是暫停或其他非戰鬥狀態，直接中斷
+            if (GameState.current !== 'PLAYING') return;
+
+            // 畫面震動遞減
+            if (GameState.screenShake > 0) {
+                GameState.screenShake *= 0.85;
+                if (GameState.screenShake < 0.2) GameState.screenShake = 0;
+            }
+
+            // 無敵計時器遞減
+            const p = GameState.player;
+            if (p.shieldTimer > 0) {
+                p.shieldTimer--;
+            }
+
+            // B. 技能冷卻遞減 (秒計)
+            // 套用轉生天賦之「疾風迅捷」
+            const cdrMultiplier = 1 - (RebirthSystem.talents.haste * 0.1); 
+            for (let skill in p.cooldowns) {
+                if (p.cooldowns[skill] > 0) {
+                    p.cooldowns[skill] -= 1/60; 
+                    if (p.cooldowns[skill] < 0) p.cooldowns[skill] = 0;
+                }
+            }
+            updateCooldownUI();
+
+            // C. 玩家物理運算
+            p.animTimer++;
+            if (p.animTimer > 6) {
+                p.animTimer = 0;
+                p.animFrame++;
+            }
+
+            // 重力套用
+            if (p.y + p.height < GameState.groundY) {
+                p.vy += GameState.gravity;
+                p.isJumping = true;
+            } else {
+                p.vy = 0;
+                p.y = GameState.groundY - p.height;
+                p.isJumping = false;
+            }
+
+            // 移動控制
+            let isMoving = false;
+            p.vx = 0;
+            const runSpeed = 4.5;
+
+            if (GameState.keys.left) {
+                p.vx = -runSpeed;
+                p.direction = -1;
+                isMoving = true;
+            } else if (GameState.keys.right) {
+                p.vx = runSpeed;
+                p.direction = 1;
+                isMoving = true;
+            }
+
+            p.y += p.vy;
+
+            // 限制左右邊界，右側進入「多重背景滾動模式」
+            const screenLeftLimit = 80;
+            const screenRightLimit = canvas.width * 0.45;
+
+            p.x += p.vx;
+            if (p.x < screenLeftLimit) {
+                p.x = screenLeftLimit;
+            }
+
+            if (p.x > screenRightLimit && p.vx > 0) {
+                const scrollDiff = p.x - screenRightLimit;
+                p.x = screenRightLimit;
+                
+                // 多層背景滾動
+                GameState.bgOffsets.mountains += scrollDiff * 0.15;
+                GameState.bgOffsets.forest += scrollDiff * 0.45;
+                GameState.bgOffsets.ground += scrollDiff * 1.0;
+                
+                GameState.distance += Math.floor(scrollDiff * 0.15);
+                
+                // 將怪物與粒子同步往左推，形成前進世界觀
+                GameState.enemies.forEach(e => e.x -= scrollDiff);
+                GameState.projectiles.forEach(proj => proj.x -= scrollDiff);
+                GameState.particles.forEach(part => part.x -= scrollDiff);
+            }
+
+            // 動態玩家動畫狀態轉移
+            if (p.state !== 'attack' && p.state !== 'slash' && p.state !== 'hit') {
+                if (isMoving) {
+                    p.state = 'run';
+                } else {
+                    p.state = 'idle';
+                }
+            }
+
+            // ------------------ D. 核心修正：多訊框多重打擊判定系統 ------------------
+            if ((p.state === 'attack' || p.state === 'slash') && p.attackHitActive) {
+                // 普通攻擊範圍或旋風斬範圍
+                const attackRange = p.state === 'slash' ? 110 : 85; 
+                const hitArea = {
+                    x: p.state === 'slash' ? p.x - attackRange/2 : (p.direction === 1 ? p.x : p.x - attackRange),
+                    y: p.y - 15,
+                    width: p.state === 'slash' ? p.width + attackRange : p.width + attackRange,
+                    height: p.height + 30
+                };
+
+                // 繪製微弱殘影粒子
+                if (Math.random() < 0.3) {
+                    createExplosion(hitArea.x + hitArea.width/2, hitArea.y + hitArea.height/2, '#ffffff', 2, 1);
+                }
+
+                GameState.enemies.forEach(enemy => {
+                    // 如果該敵人尚未在當前揮打中被傷害過，且與打擊盒重疊
+                    if (!p.attackHitList.includes(enemy) && checkCollision(hitArea, enemy)) {
+                        p.attackHitList.push(enemy); // 鎖定該怪物，防止在後續 Frame 被重複扣血
+                        
+                        const mult = p.state === 'slash' ? 1.6 : 1.0;
+                        damageEnemy(enemy, Math.floor(p.atk * mult), false);
+                    }
+                });
+            }
+
+            // ------------------ E. 更新子彈/投射物物理與碰撞 ------------------
+            for (let i = GameState.projectiles.length - 1; i >= 0; i--) {
+                const proj = GameState.projectiles[i];
+                proj.x += proj.vx;
+                proj.y += proj.vy;
+
+                // 移除溢出螢幕的子彈
+                if (proj.x < -150 || proj.x > canvas.width + 150 || proj.y < -50 || proj.y > canvas.height + 50) {
+                    GameState.projectiles.splice(i, 1);
+                    continue;
+                }
+
+                // 玩家發射的火球
+                if (proj.owner === 'player') {
+                    for (let j = GameState.enemies.length - 1; j >= 0; j--) {
+                        const enemy = GameState.enemies[j];
+                        if (checkCollision(proj, enemy)) {
+                            damageEnemy(enemy, proj.damage, true);
+                            createExplosion(proj.x, proj.y, '#f97316', 15, 4.5);
+                            GameState.projectiles.splice(i, 1);
+                            break;
+                        }
+                    }
+                } 
+                // 怪物發射的所有子彈
+                else if (proj.owner === 'enemy') {
+                    if (checkCollision(proj, p)) {
+                        damagePlayer(proj.damage);
+                        createExplosion(proj.x, proj.y, proj.type === 'shadow_orb' ? '#c084fc' : '#ef4444', 12, 3.5);
+                        GameState.projectiles.splice(i, 1);
+                    }
+                }
+            }
+
+            // ------------------ F. 更新高度多樣化的敵人生態與 AI 行為 ------------------
+            for (let i = GameState.enemies.length - 1; i >= 0; i--) {
+                const e = GameState.enemies[i];
+                
+                e.animTimer++;
+                if (e.animTimer > 8) {
+                    e.animTimer = 0;
+                    e.animFrame++;
+                }
+
+                if (e.hitCooldown > 0) e.hitCooldown--;
+
+                // 各類型敵人專屬 AI 行為
+                e.aiTimer++;
+                const distanceToPlayer = p.x - e.x;
+                const absDist = Math.abs(distanceToPlayer);
+
+                if (e.state === 'move') {
+                    if (e.behavior === 'bounce') {
+                        // 史萊姆彈跳前進
+                        if (e.vy === 0 && e.aiTimer > 90) { // 每隔1.5秒跳躍一次
+                            e.vy = -6.5; 
+                            e.aiTimer = 0;
+                            e.vx = (distanceToPlayer > 0 ? 1 : -1) * 2.2; // 彈跳時加速前進
+                        }
+                        
+                        // 史萊姆在地面上不走動
+                        if (e.vy === 0) {
+                            e.vx = 0;
+                        } else {
+                            e.vy += GameState.gravity;
+                            e.x += e.vx;
+                        }
+                        
+                        e.y += e.vy;
+                        if (e.y + e.height > GameState.groundY) {
+                            e.y = GameState.groundY - e.height;
+                            e.vy = 0;
+                        }
+
+                        // 史萊姆直接碰撞玩家
+                        if (absDist < 35) {
+                            damagePlayer(e.atk);
+                            p.vy = -3;
+                            p.vx = distanceToPlayer > 0 ? -4 : 4;
+                            e.hitCooldown = 25;
+                        }
+                    }
+                    else if (e.behavior === 'charge') {
+                        // 哥布林：偵測玩家距離，近身蓄力衝刺
+                        if (absDist < 180 && absDist > 40) {
+                            e.state = 'charge';
+                            e.aiTimer = 0;
+                            e.vx = 0; // 停下準備衝鋒
+                        } else {
+                            e.vx = (distanceToPlayer > 0 ? 1.5 : -1.5);
+                            e.x += e.vx;
+                        }
+
+                        if (absDist < 40) {
+                            damagePlayer(e.atk);
+                            p.vy = -2.5;
+                            p.vx = distanceToPlayer > 0 ? -4 : 4;
+                            e.hitCooldown = 20;
+                        }
+                    }
+                    else if (e.behavior === 'shoot') {
+                        // 骷髏射手：在遠處停下，發射骨箭
+                        if (absDist > 220) {
+                            e.vx = (distanceToPlayer > 0 ? 1.0 : -1.0);
+                            e.x += e.vx;
+                        } else if (absDist < 140) {
+                            // 離勇者太近，會稍微往後退開拉開安全距離
+                            e.vx = (distanceToPlayer > 0 ? -1.0 : 1.0);
+                            e.x += e.vx;
+                        } else {
+                            e.vx = 0;
+                            // 射箭計時器
+                            if (e.aiTimer > 120) { // 每兩秒射擊
+                                e.aiTimer = 0;
+                                AudioSynth.play('fireball');
+                                GameState.projectiles.push({
+                                    owner: 'enemy',
+                                    type: 'arrow',
+                                    x: e.x - 5,
+                                    y: e.y + 18,
+                                    vx: (distanceToPlayer > 0 ? 5.5 : -5.5),
+                                    vy: 0,
+                                    size: 5,
+                                    damage: Math.floor(e.atk * 0.9)
+                                });
+                            }
+                        }
+                    }
+                    else if (e.behavior === 'teleport_magic') {
+                        // 暗影法師：瞬移與自動追蹤魔法
+                        if (absDist < 100) {
+                            // 當玩家非常接近，瞬間向後傳送 140px，並留下粒子
+                            createExplosion(e.x + e.width/2, e.y + e.height/2, '#a855f7', 15, 4);
+                            e.x += (distanceToPlayer > 0 ? -140 : 140);
+                            // 防止瞬移出螢幕
+                            if (e.x < 50) e.x = 100;
+                            if (e.x > canvas.width - 50) e.x = canvas.width - 120;
+                            
+                            AudioSynth.play('heal');
+                            createExplosion(e.x + e.width/2, e.y + e.height/2, '#c084fc', 10, 4);
+                            e.aiTimer = 0; 
+                        } else if (absDist > 280) {
+                            e.x += (distanceToPlayer > 0 ? 1.2 : -1.2);
+                        } else {
+                            e.vx = 0;
+                            // 召喚追蹤魔眼
+                            if (e.aiTimer > 150) { 
+                                e.aiTimer = 0;
+                                AudioSynth.play('fireball');
+                                
+                                // 垂直向玩家傾斜角度
+                                const pCenterY = p.y + p.height/2;
+                                const eCenterY = e.y + 14;
+                                const angle = Math.atan2(pCenterY - eCenterY, p.x - e.x);
+                                
+                                GameState.projectiles.push({
+                                    owner: 'enemy',
+                                    type: 'shadow_orb',
+                                    x: e.x + (distanceToPlayer > 0 ? e.width : 0),
+                                    y: eCenterY,
+                                    vx: Math.cos(angle) * 4.0,
+                                    vy: Math.sin(angle) * 4.0,
+                                    size: 11,
+                                    damage: Math.floor(e.atk * 1.0)
+                                });
+                                createFloatingText(e.x + e.width/2, e.y - 10, "暗影球！", '#a855f7');
+                            }
+                        }
+                    }
+                    else if (e.behavior === 'boss') {
+                        // 烈焰魔龍 BOSS 的極限複合大招 AI 模式
+                        e.vx = (distanceToPlayer > 0 ? 0.5 : -0.5);
+                        e.x += e.vx;
+
+                        if (e.aiTimer > 180) { // 每三秒發動隨機技能
+                            e.aiTimer = 0;
+                            const randSkill = Math.random();
+
+                            if (randSkill < 0.4) {
+                                // 1. 地獄火吐息 (扇形三連發球)
+                                showToast("烈焰巨龍張口噴出滅世吐息！", "warning");
+                                AudioSynth.play('fireball');
+                                const baseAngle = Math.PI; // 向左噴射
+                                [-0.2, 0, 0.2].forEach(ang => {
+                                    GameState.projectiles.push({
+                                        owner: 'enemy',
+                                        type: 'dragon_fire',
+                                        x: e.x - 10,
+                                        y: e.y + 20,
+                                        vx: Math.cos(baseAngle + ang) * 6.0,
+                                        vy: Math.sin(baseAngle + ang) * 6.0,
+                                        size: 15,
+                                        damage: Math.floor(e.atk * 0.8)
+                                    });
+                                });
+                            } 
+                            else if (randSkill < 0.75) {
+                                // 2. 大地震擊 (強制地表震動判定)
+                                showToast("巨龍猛烈踩踏大地！引發狂暴大地震擊！", "warning");
+                                createScreenShake(15);
+                                AudioSynth.play('hurt');
+                                
+                                // 若玩家在地表(沒跳躍)，立刻扣除 20% 最大生命傷害
+                                if (!p.isJumping) {
+                                    damagePlayer(Math.floor(p.maxHp * 0.20));
+                                    createFloatingText(p.x + p.width/2, p.y, "未跳躍受大地震擊!", '#ef4444', true);
+                                } else {
+                                    createFloatingText(p.x + p.width/2, p.y, "完美起跳迴避!", '#34d399', false);
+                                }
+                            } 
+                            else {
+                                // 3. 召喚岩漿隕石雨
+                                showToast("地表熔岩噴發！召喚天降隕石雨！", "warning");
+                                createScreenShake(8);
+                                for (let k = 0; k < 4; k++) {
+                                    // 隨機在玩家附近上方 X 高處生成墬落隕石
+                                    const mX = p.x + (Math.random() - 0.5) * 350;
+                                    GameState.projectiles.push({
+                                        owner: 'enemy',
+                                        type: 'meteor',
+                                        x: mX,
+                                        y: -20 - (k * 40),
+                                        vx: -2.0,
+                                        vy: 5.5,
+                                        size: 13,
+                                        damage: Math.floor(e.atk * 1.1)
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } 
+                else if (e.state === 'charge') {
+                    // 哥布林蓄力中
+                    if (e.aiTimer > 35) { // 蓄力約 0.6 秒
+                        e.state = 'action';
+                        e.aiTimer = 0;
+                        e.vx = (distanceToPlayer > 0 ? 6.5 : -6.5); // 獲得高速衝刺爆擊速度
+                    }
+                } 
+                else if (e.state === 'action') {
+                    // 哥布林全力衝鋒
+                    e.x += e.vx;
+                    if (e.aiTimer > 25) { // 衝鋒持續 0.4 秒後回復正常移動
+                        e.state = 'move';
+                        e.vx = -1.5;
+                    }
+
+                    if (absDist < 42) {
+                        damagePlayer(Math.floor(e.atk * 1.4)); // 衝鋒加成 1.4 倍
+                        p.vy = -3;
+                        p.vx = distanceToPlayer > 0 ? -5 : 5;
+                        e.state = 'move';
+                        e.vx = -1.5;
+                        e.hitCooldown = 30;
+                    }
+                }
+
+                // 怪物生命耗盡
+                if (e.hp <= 0) {
+                    gainGold(e.gold);
+                    gainExp(e.exp);
+                    GameState.kills++;
+                    
+                    createExplosion(e.x + e.width/2, e.y + e.height/2, e.color, 22, 5);
+                    AudioSynth.play('levelup');
+
+                    if (e.isBoss) {
+                        winGame();
+                    }
+
+                    GameState.enemies.splice(i, 1);
+                }
+            }
+
+            // G. 粒子系統更新
+            for (let i = GameState.particles.length - 1; i >= 0; i--) {
+                const part = GameState.particles[i];
+                part.x += part.vx;
+                part.y += part.vy;
+                part.vy += part.gravity;
+                part.alpha -= part.decay;
+                
+                if (part.alpha <= 0) {
+                    GameState.particles.splice(i, 1);
+                }
+            }
+
+            // H. 飄浮文字更新
+            for (let i = GameState.floatingTexts.length - 1; i >= 0; i--) {
+                const t = GameState.floatingTexts[i];
+                t.x += t.vx;
+                t.y += t.vy;
+                t.life--;
+                if (t.life <= 0) {
+                    GameState.floatingTexts.splice(i, 1);
+                } else if (t.life < 15) {
+                    t.alpha = t.life / 15; 
+                }
+            }
+
+            // I. 魔物與世界更新
+            updateEnemySpawning();
+            updateHUD();
+        }
+
+        // ------------------ 傷害與數值程序 ------------------
+        function damagePlayer(damageAmount) {
+            const p = GameState.player;
+            if (p.shieldTimer > 0 || p.hp <= 0) return; // 無敵中不扣血
+
+            const finalDamage = Math.max(1, Math.floor(damageAmount - p.def * 0.4));
+            p.hp -= finalDamage;
+            p.state = 'hit';
+            createScreenShake(8);
+            AudioSynth.play('hurt');
+            
+            createFloatingText(p.x + p.width/2, p.y, `-${finalDamage}`, '#ef4444', true);
+            createExplosion(p.x + p.width/2, p.y + p.height/2, '#ef4444', 8, 3.5);
+
+            setTimeout(() => {
+                if (p.hp > 0 && p.state === 'hit') p.state = 'idle';
+            }, 300);
+
+            if (p.hp <= 0) {
+                p.hp = 0;
+                p.state = 'dead';
+                openDeathOverlay(); // 觸發全新命運抉擇畫面
+            }
+            updateHUD();
+        }
+
+        function damageEnemy(enemy, damageAmount, isMagic = false) {
+            if (enemy.hp <= 0) return;
+
+            const isCrit = Math.random() < 0.22;
+            let finalAtk = damageAmount;
+            if (isCrit) finalAtk = Math.floor(finalAtk * 1.6);
+
+            const finalDamage = Math.max(1, Math.floor(finalAtk - enemy.def * 0.3));
+            enemy.hp -= finalDamage;
+            enemy.hitCooldown = 12;
+            
+            createScreenShake(4);
+            AudioSynth.play('hit');
+
+            const textColor = isCrit ? '#fcd34d' : (isMagic ? '#38bdf8' : '#ffffff');
+            createFloatingText(enemy.x + enemy.width/2, enemy.y, `${finalDamage}${isCrit ? ' 暴擊!' : ''}`, textColor, isCrit);
+            createExplosion(enemy.x + enemy.width/2, enemy.y + enemy.height/2, enemy.color, 8, 3);
+        }
+
+        // ------------------ 技能觸發區 ------------------
+        function triggerNormalAttack() {
+            const p = GameState.player;
+            if (p.state === 'attack' || p.state === 'slash' || p.hp <= 0) return;
+
+            p.state = 'attack';
+            p.animFrame = 0;
+            p.animTimer = 0;
+            
+            // 啟用傷害判定與重置打擊名單
+            p.attackHitActive = true;
+            p.attackHitList = [];
+
+            AudioSynth.play('hit');
+
+            // 揮擊 0.25 秒後結束傷害判定
+            setTimeout(() => {
+                p.attackHitActive = false;
+                if (p.state === 'attack') p.state = 'idle';
+            }, 250);
+        }
+
+        function triggerSkillSlash() {
+            const p = GameState.player;
+            if (p.cooldowns.slash > 0 || p.hp <= 0) return;
+            if (p.mp < 15) {
+                showToast("魔力值不足！需要 15 MP", "warning");
+                return;
+            }
+
+            p.mp -= 15;
+            // 技能冷卻套用天賦急速加權
+            p.cooldowns.slash = p.cooldownDurations.slash * (1 - RebirthSystem.talents.haste * 0.1);
+            AudioSynth.play('heal');
+
+            p.state = 'slash';
+            p.animFrame = 0;
+            p.animTimer = 0;
+            
+            p.attackHitActive = true;
+            p.attackHitList = [];
+
+            createExplosion(p.x + p.width/2, p.y + p.height/2, '#f97316', 15, 4.5);
+            showToast("使用技能：旋風斬烈打！", "success");
+
+            setTimeout(() => {
+                p.attackHitActive = false;
+                if (p.state === 'slash') p.state = 'idle';
+            }, 300);
+        }
+
+        function triggerSkillFire() {
+            const p = GameState.player;
+            if (p.cooldowns.fire > 0 || p.hp <= 0) return;
+            if (p.mp < 25) {
+                showToast("魔力值不足！需要 25 MP", "warning");
+                return;
+            }
+
+            p.mp -= 25;
+            p.cooldowns.fire = p.cooldownDurations.fire * (1 - RebirthSystem.talents.haste * 0.1);
+            AudioSynth.play('fireball');
+
+            GameState.projectiles.push({
+                owner: 'player',
+                type: 'fireball',
+                x: p.direction === 1 ? p.x + p.width + 10 : p.x - 10,
+                y: p.y + p.height/2 - 4,
+                vx: p.direction * 7.5,
+                vy: 0,
+                size: 11,
+                damage: Math.floor(p.atk * 1.8) // 1.8 倍魔法加值
+            });
+
+            showToast("釋放法術：烈焰火球！", "success");
+        }
+
+        function triggerSkillHeal() {
+            const p = GameState.player;
+            if (p.cooldowns.heal > 0 || p.hp <= 0) return;
+            if (p.mp < 30) {
+                showToast("魔力值不足！需要 30 MP", "warning");
+                return;
+            }
+
+            p.mp -= 30;
+            p.cooldowns.heal = p.cooldownDurations.heal * (1 - RebirthSystem.talents.haste * 0.1);
+            
+            const healAmt = 55;
+            p.hp = Math.min(p.maxHp, p.hp + healAmt);
+            
+            AudioSynth.play('heal');
+            createFloatingText(p.x + p.width/2, p.y, `+${healAmt}`, '#10b981', false);
+            createExplosion(p.x + p.width/2, p.y + p.height/2, '#34d399', 15, 3.5);
+
+            showToast("神聖治療！體力大幅回復", "success");
+        }
+    </script>
+
+    <script>
+        // ------------------ 金幣與經驗升級系統 ------------------
+        function gainGold(amount) {
+            // 套用轉生天賦之「貪婪之眼」金幣加成
+            const multiplier = 1 + (RebirthSystem.talents.greed * 0.2); 
+            const finalGold = Math.floor(amount * multiplier);
+            GameState.player.gold += finalGold;
+            createFloatingText(GameState.player.x + 10, GameState.player.y - 40, `+${finalGold} Gold`, '#fbbf24');
+        }
+
+        function gainExp(amount) {
+            const p = GameState.player;
+            p.exp += amount;
+            createFloatingText(p.x - 10, p.y - 40, `+${amount} EXP`, '#10b981');
+
+            if (p.exp >= p.nextExp) {
+                p.exp -= p.nextExp;
+                levelUp();
+            }
+        }
+
+        function levelUp() {
+            const p = GameState.player;
+            p.level++;
+            p.nextExp = Math.floor(p.nextExp * 1.5);
+            
+            // 基礎全能力提升
+            p.maxHp = Math.floor(p.maxHp + 15);
+            p.maxMp = Math.floor(p.maxMp + 10);
+            p.hp = p.maxHp; 
+            p.mp = p.maxMp; 
+            p.atk = Math.floor(p.atk + 4);
+            p.def = Math.floor(p.def + 1.5);
+
+            AudioSynth.play('levelup');
+            createExplosion(p.x + p.width/2, p.y + p.height/2, '#fbbf24', 30, 6);
+            showToast(`★★ 等級提升至 LV ${p.level}！★★`, 'levelup');
+        }
+
+        // ------------------ HUD 同步 ------------------
+        function updateHUD() {
+            const p = GameState.player;
+            
+            document.getElementById('hud-level').innerText = p.level;
+            document.getElementById('hud-hp-text').innerText = `${p.hp}/${p.maxHp}`;
+            document.getElementById('hud-mp-text').innerText = `${p.mp}/${p.maxMp}`;
+            
+            const hpPct = (p.hp / p.maxHp) * 100;
+            const mpPct = (p.mp / p.maxMp) * 100;
+            const expPct = (p.exp / p.nextExp) * 100;
+            
+            document.getElementById('hud-hp-bar').style.width = `${Math.max(0, hpPct)}%`;
+            document.getElementById('hud-mp-bar').style.width = `${Math.max(0, mpPct)}%`;
+            document.getElementById('hud-exp-bar').style.width = `${Math.max(0, expPct)}%`;
+            
+            // 原地無敵盾條
+            const shieldBar = document.getElementById('hud-shield-bar');
+            if (p.shieldTimer > 0) {
+                shieldBar.style.width = `${(p.shieldTimer / 120) * 100}%`;
+            } else {
+                shieldBar.style.width = `0%`;
+            }
+
+            document.getElementById('hud-gold').innerText = p.gold;
+            document.getElementById('hud-distance').innerText = GameState.distance;
+        }
+
+        function updateCooldownUI() {
+            const p = GameState.player;
+            
+            const slashCD = document.getElementById('cooldown-slash');
+            if (p.cooldowns.slash > 0) {
+                slashCD.classList.remove('hidden');
+                slashCD.innerText = p.cooldowns.slash.toFixed(1) + 's';
+            } else {
+                slashCD.classList.add('hidden');
+            }
+
+            const fireCD = document.getElementById('cooldown-fire');
+            if (p.cooldowns.fire > 0) {
+                fireCD.classList.remove('hidden');
+                fireCD.innerText = p.cooldowns.fire.toFixed(1) + 's';
+            } else {
+                fireCD.classList.add('hidden');
+            }
+
+            const healCD = document.getElementById('cooldown-heal');
+            if (p.cooldowns.heal > 0) {
+                healCD.classList.remove('hidden');
+                healCD.innerText = p.cooldowns.heal.toFixed(1) + 's';
+            } else {
+                healCD.classList.add('hidden');
+            }
+        }
+    </script>
+
+    <script>
+        // ------------------ 遊戲流程控制與復活/轉生機制 ------------------
+        
+        function startGame() {
+            // A. 初始化遊戲基礎狀態
+            GameState.current = 'PLAYING';
+            GameState.distance = 0;
+            GameState.kills = 0;
+            GameState.enemies = [];
+            GameState.projectiles = [];
+            GameState.particles = [];
+            GameState.floatingTexts = [];
+            GameState.usedRevivesThisRun = 0; 
+            
+            const p = GameState.player;
+            p.level = 1;
+            p.exp = 0;
+            p.nextExp = 100;
+            p.gold = 50;
+            p.weaponLevel = 1;
+            p.armorLevel = 1;
+            p.potions = 3;
+            p.x = 150;
+            p.y = 0;
+            p.vx = 0;
+            p.vy = 0;
+            p.state = 'idle';
+            p.shieldTimer = 0;
+
+            // B. 計算轉生天賦(Rebirth Talents)帶來的基礎永久數值加成
+            // 力量精通：+15% 基礎攻擊
+            const atkMult = 1 + (RebirthSystem.talents.strength * 0.15);
+            p.atk = Math.floor(15 * atkMult);
+
+            // 生命祝福：+15% 基礎最大生命值
+            const hpMult = 1 + (RebirthSystem.talents.vigor * 0.15);
+            p.maxHp = Math.floor(100 * hpMult);
+            p.hp = p.maxHp;
+
+            p.maxMp = 50;
+            p.mp = 50;
+            p.def = 5;
+
+            p.cooldowns.slash = 0;
+            p.cooldowns.fire = 0;
+            p.cooldowns.heal = 0;
+
+            document.getElementById('start-overlay').classList.add('hidden');
+            document.getElementById('end-overlay').classList.add('hidden');
+            document.getElementById('shop-overlay').classList.add('hidden');
+            document.getElementById('pause-overlay').classList.add('hidden');
+            
+            AudioSynth.play('levelup');
+            showToast("勇者已啟程，無盡的幻境等著你來挑戰！", "success");
+        }
+
+        // 開啟命運抉擇畫面 (原死亡結束畫面改造)
+        function openDeathOverlay() {
+            GameState.current = 'GAMEOVER';
+            
+            // 計算可獲取的轉生靈魂公式：等級*3 + 距離/80
+            const soulsEarned = Math.floor(GameState.player.level * 3 + GameState.distance / 80);
+
+            document.getElementById('end-title').className = "text-2xl md:text-3xl font-black mb-1.5 tracking-wide text-rose-500 animate-pulse";
+            document.getElementById('end-title').innerText = "生命已然耗盡";
+            document.getElementById('end-icon-bg').className = "w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3 bg-red-950 border-2 border-red-500 text-red-500 animate-bounce";
+            document.getElementById('end-icon').className = "fa-solid fa-skull";
+            document.getElementById('end-desc').innerText = "你倒在了無盡幻境深處，但別氣餒！你可以選擇浴火重生繼續，或者攜帶功勳轉生、在神殿覺醒超凡天賦！";
+            
+            // 同步結算數值
+            document.getElementById('end-stat-level').innerText = `LV ${GameState.player.level}`;
+            document.getElementById('end-stat-distance').innerText = `${GameState.distance} m`;
+            document.getElementById('end-stat-kills').innerText = `${GameState.kills} 隻`;
+            document.getElementById('end-stat-souls').innerText = `+${soulsEarned} Souls`;
+
+            // 處理「原地復活」按鈕控制
+            const btnRevive = document.getElementById('btn-revive');
+            const freeReviveMax = RebirthSystem.talents.revival; // 鳳凰涅槃提供免費復活數
+            const freeRevivesLeft = Math.max(0, freeReviveMax - GameState.usedRevivesThisRun);
+
+            if (freeRevivesLeft > 0) {
+                // 有免費復活
+                document.getElementById('revive-cost-text').innerText = `免費天賦次數 (剩餘: ${freeRevivesLeft})`;
+                btnRevive.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnRevive.disabled = false;
+            } else {
+                // 需消耗金幣
+                const goldCost = 150 + GameState.usedRevivesThisRun * 100;
+                document.getElementById('revive-cost-text').innerText = `消耗: ${goldCost} 金幣 (手握: ${GameState.player.gold} G)`;
+                
+                if (GameState.player.gold >= goldCost) {
+                    btnRevive.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btnRevive.disabled = false;
+                } else {
+                    btnRevive.classList.add('opacity-50', 'cursor-not-allowed');
+                    btnRevive.disabled = true;
+                }
+            }
+
+            document.getElementById('end-overlay').classList.remove('hidden');
+        }
+
+        // 原地復活（浴火重生）
+        function performRevive() {
+            const p = GameState.player;
+            const freeReviveMax = RebirthSystem.talents.revival;
+            const freeRevivesLeft = Math.max(0, freeReviveMax - GameState.usedRevivesThisRun);
+
+            if (freeRevivesLeft > 0) {
+                // 扣除天賦次數
+                GameState.usedRevivesThisRun++;
+                showToast("天賦【鳳凰涅槃】觸發！你獲得了浴火重生！", "success");
+            } else {
+                // 扣除金幣
+                const goldCost = 150 + GameState.usedRevivesThisRun * 100;
+                if (p.gold >= goldCost) {
+                    p.gold -= goldCost;
+                    GameState.usedRevivesThisRun++;
+                    showToast(`扣除 ${goldCost} 金幣，原地復活！`, "success");
+                } else {
+                    showToast("金幣不足，無法進行原地復活！", "warning");
+                    return;
+                }
+            }
+
+            // 原地復活效果：滿血滿魔，獲得 2 秒(120 frames)無敵防護罩與大爆炸擊退粒子
+            p.hp = p.maxHp;
+            p.mp = p.maxMp;
+            p.state = 'idle';
+            p.shieldTimer = 120; // 2秒無敵
+            
+            createExplosion(p.x + p.width/2, p.y + p.height/2, '#22d3ee', 35, 6);
+            AudioSynth.play('levelup');
+
+            // 清空附近怪物，防止原地二次秒死
+            GameState.enemies = [];
+
+            // 關閉死亡畫面
+            document.getElementById('end-overlay').classList.add('hidden');
+            GameState.current = 'PLAYING';
+        }
+
+        // 步入輪迴（轉生天賦結算）
+        function performRebirth() {
+            // 計算獲得天賦靈魂
+            const soulsEarned = Math.floor(GameState.player.level * 3 + GameState.distance / 80);
+            
+            RebirthSystem.souls += soulsEarned;
+            RebirthSystem.save(); // 保存到 LocalStorage
+            
+            showToast(`成功步入輪迴！獲得了 ${soulsEarned} 點轉生靈魂。`, "success");
+
+            // 重置整個遊戲回到主選單
+            document.getElementById('end-overlay').classList.add('hidden');
+            document.getElementById('start-overlay').classList.remove('hidden');
+            GameState.current = 'START';
+            
+            // 更新開始介面文字
+            document.getElementById('start-rebirth-indicator').innerText = `[當前持有靈魂: ${RebirthSystem.souls} 點]`;
+        }
+
+        function winGame() {
+            GameState.current = 'VICTORY';
+            
+            const soulsEarned = Math.floor(GameState.player.level * 5 + GameState.distance / 50) + 100; // 獲勝額外送100 souls
+
+            document.getElementById('end-title').className = "text-2xl md:text-3xl font-black mb-1.5 tracking-wide text-amber-400 animate-bounce";
+            document.getElementById('end-title').innerText = "勇者凱旋歸來！";
+            document.getElementById('end-icon-bg').className = "w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3 bg-amber-950 border-2 border-amber-400 text-amber-400";
+            document.getElementById('end-icon').className = "fa-solid fa-trophy";
+            document.getElementById('end-desc').innerText = "奇蹟般的一幕！你成功踏破無盡險途並粉碎了巨龍，王國從此回歸永恆的光明！";
+            
+            document.getElementById('end-stat-level').innerText = `LV ${GameState.player.level}`;
+            document.getElementById('end-stat-distance').innerText = `${GameState.distance} m`;
+            document.getElementById('end-stat-kills').innerText = `${GameState.kills} 隻`;
+            document.getElementById('end-stat-souls').innerText = `+${soulsEarned} Souls (首通加成!)`;
+
+            // 保存通關靈魂
+            RebirthSystem.souls += soulsEarned;
+            RebirthSystem.save();
+
+            // 調整按鈕功能：僅保留轉生輪迴回到起點
+            const btnRevive = document.getElementById('btn-revive');
+            btnRevive.classList.add('opacity-50', 'cursor-not-allowed');
+            btnRevive.disabled = true;
+            document.getElementById('revive-cost-text').innerText = "已順利通關";
+
+            document.getElementById('end-overlay').classList.remove('hidden');
+        }
+
+        // ------------------ 暫停功能實作 ------------------
+        function togglePause() {
+            if (GameState.current === 'START' || GameState.current === 'GAMEOVER' || GameState.current === 'VICTORY' || GameState.current === 'SHOP') return;
+
+            if (GameState.current === 'PAUSED') {
+                GameState.current = 'PLAYING';
+                document.getElementById('pause-overlay').classList.add('hidden');
+            } else {
+                GameState.current = 'PAUSED';
+                document.getElementById('pause-overlay').classList.remove('hidden');
+            }
+        }
+
+        // ------------------ 營地與天賦神殿雙 Tab 控制 ------------------
+        function toggleShop() {
+            if (GameState.current === 'START' || GameState.current === 'GAMEOVER' || GameState.current === 'VICTORY') return;
+
+            if (GameState.current === 'SHOP') {
+                // 關閉
+                GameState.current = 'PLAYING';
+                document.getElementById('shop-overlay').classList.add('hidden');
+            } else {
+                // 開啟
+                GameState.current = 'SHOP';
+                switchOverlayTab('shop'); // 預設開啟商店
+                document.getElementById('shop-overlay').classList.remove('hidden');
+            }
+        }
+
+        function switchOverlayTab(tabName) {
+            const shopBtn = document.getElementById('tab-shop-btn');
+            const rebirthBtn = document.getElementById('tab-rebirth-btn');
+            const shopContent = document.getElementById('tab-shop-content');
+            const rebirthContent = document.getElementById('tab-tab-content'); // 修正結構ID
+            const rebirthContentReal = document.getElementById('tab-rebirth-content');
+
+            if (tabName === 'shop') {
+                shopBtn.className = "flex-1 py-2 text-center font-bold text-sm rounded-lg bg-amber-500 text-slate-950 transition flex items-center justify-center space-x-1";
+                rebirthBtn.className = "flex-1 py-2 text-center font-bold text-sm rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center justify-center space-x-1";
+                
+                shopContent.classList.remove('hidden');
+                rebirthContentReal.classList.add('hidden');
+                updateShopUI();
+            } else {
+                rebirthBtn.className = "flex-1 py-2 text-center font-bold text-sm rounded-lg bg-emerald-500 text-slate-950 transition flex items-center justify-center space-x-1";
+                shopBtn.className = "flex-1 py-2 text-center font-bold text-sm rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center justify-center space-x-1";
+                
+                shopContent.classList.add('hidden');
+                rebirthContentReal.classList.remove('hidden');
+                updateRebirthUI();
+            }
+        }
+
+        // 1. 營地商店 UI 刷新
+        function updateShopUI() {
+            const p = GameState.player;
+            document.getElementById('shop-gold').innerText = p.gold;
+            document.getElementById('shop-atk').innerText = p.atk;
+            document.getElementById('shop-def').innerText = p.def;
+            
+            document.getElementById('shop-weapon-lv').innerText = p.weaponLevel;
+            document.getElementById('shop-armor-lv').innerText = p.armorLevel;
+            document.getElementById('shop-potion-count').innerText = p.potions;
+
+            document.getElementById('shop-weapon-cost').innerText = p.weaponLevel * 75;
+            document.getElementById('shop-armor-cost').innerText = p.armorLevel * 60;
+        }
+
+        // 2. 轉生神殿 UI 刷新
+        function updateRebirthUI() {
+            document.getElementById('rebirth-souls-count').innerText = RebirthSystem.souls;
+            
+            // 力量精通
+            const t1Lv = RebirthSystem.talents.strength;
+            document.getElementById('talent-1-lv').innerText = t1Lv;
+            document.getElementById('talent-1-cost').innerText = (t1Lv + 1) * 5;
+            
+            // 生命祝福
+            const t2Lv = RebirthSystem.talents.vigor;
+            document.getElementById('talent-2-lv').innerText = t2Lv;
+            document.getElementById('talent-2-cost').innerText = (t2Lv + 1) * 5;
+            
+            // 疾風迅捷
+            const t3Lv = RebirthSystem.talents.haste;
+            document.getElementById('talent-3-lv').innerText = t3Lv;
+            document.getElementById('talent-3-cost').innerText = (t3Lv + 1) * 8;
+            
+            // 貪婪之眼
+            const t4Lv = RebirthSystem.talents.greed;
+            document.getElementById('talent-4-lv').innerText = t4Lv;
+            document.getElementById('talent-4-cost').innerText = (t4Lv + 1) * 5;
+            
+            // 鳳凰涅槃
+            const t5Lv = RebirthSystem.talents.revival;
+            document.getElementById('talent-5-lv').innerText = t5Lv;
+            document.getElementById('talent-5-cost').innerText = (t5Lv + 1) * 15;
+            
+            // 各別按鈕鎖死控制 (滿級鎖死)
+            toggleTalentBtnState('btn-talent-1', t1Lv >= 10, (t1Lv + 1) * 5);
+            toggleTalentBtnState('btn-talent-2', t2Lv >= 10, (t2Lv + 1) * 5);
+            toggleTalentBtnState('btn-talent-3', t3Lv >= 5, (t3Lv + 1) * 8);
+            toggleTalentBtnState('btn-talent-4', t4Lv >= 10, (t4Lv + 1) * 5);
+            toggleTalentBtnState('btn-talent-5', t5Lv >= 3, (t5Lv + 1) * 15);
+        }
+
+        function toggleTalentBtnState(btnId, isMax, cost) {
+            const btn = document.getElementById(btnId);
+            if (isMax) {
+                btn.innerText = "已滿級";
+                btn.disabled = true;
+                btn.className = "px-3 py-1.5 bg-slate-800 text-slate-500 text-xs font-bold rounded-lg cursor-not-allowed";
+            } else {
+                btn.disabled = false;
+                btn.className = "btn-active px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition";
+                btn.innerHTML = `升級 (${cost} 靈魂)`;
+            }
+        }
+
+        // ------------------ 購買裝備邏輯 ------------------
+        function buyWeaponUpgrade() {
+            const p = GameState.player;
+            const cost = p.weaponLevel * 75;
+            if (p.gold >= cost) {
+                p.gold -= cost;
+                p.weaponLevel++;
+                p.atk += 6; 
+                AudioSynth.play('buy');
+                showToast("神兵淬鍊成功！冒險基礎攻擊力大幅提升", "success");
+                updateShopUI();
+                updateHUD();
+            } else {
+                showToast("身上金幣餘額不足！多去擊殺魔物吧", "warning");
+            }
+        }
+
+        function buyArmorUpgrade() {
+            const p = GameState.player;
+            const cost = p.armorLevel * 60;
+            if (p.gold >= cost) {
+                p.gold -= cost;
+                p.armorLevel++;
+                p.def += 3; 
+                AudioSynth.play('buy');
+                showToast("重裝鎧甲強化成功！生存防禦防護提升", "success");
+                updateShopUI();
+                updateHUD();
+            } else {
+                showToast("身上金幣餘額不足！", "warning");
+            }
+        }
+
+        function buyPotion() {
+            const p = GameState.player;
+            const cost = 30;
+            if (p.gold >= cost) {
+                p.gold -= cost;
+                p.potions++;
+                AudioSynth.play('buy');
+                showToast("購買生命藥水。將隨時提供緊急補充！", "success");
+                updateShopUI();
+                updateHUD();
+            } else {
+                showToast("身上金幣餘額不足！", "warning");
+            }
+        }
+
+        // ------------------ 天賦樹升級操作 ------------------
+        function buyTalent(talentKey, cost, maxLv) {
+            if (RebirthSystem.souls >= cost) {
+                if (RebirthSystem.talents[talentKey] < maxLv) {
+                    RebirthSystem.souls -= cost;
+                    RebirthSystem.talents[talentKey]++;
+                    RebirthSystem.save();
+                    AudioSynth.play('buy');
+                    showToast("神殿天賦升級成功！效果永久生效", "success");
+                    updateRebirthUI();
+                } else {
+                    showToast("該神殿天賦已達最大等級限制！", "warning");
+                }
+            } else {
+                showToast("天賦靈魂點數不足！請先步入輪迴或通關獲得", "warning");
+            }
+        }
+    </script>
+
+    <script>
+        // ------------------ 電腦端鍵盤操作監聽 ------------------
+        window.addEventListener('keydown', e => {
+            if (GameState.current === 'PLAYING') {
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                    GameState.keys.left = true;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                    GameState.keys.right = true;
+                }
+                if ((e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') && !GameState.player.isJumping) {
+                    GameState.player.vy = -12.5; 
+                    GameState.player.isJumping = true;
+                    AudioSynth.play('jump');
+                }
+                
+                // 技能快捷鍵
+                if (e.key === 'j' || e.key === 'J') {
+                    triggerNormalAttack();
+                }
+                if (e.key === 'k' || e.key === 'K') {
+                    triggerSkillSlash();
+                }
+                if (e.key === 'l' || e.key === 'L') {
+                    triggerSkillFire();
+                }
+                if (e.key === 'i' || e.key === 'I') {
+                    triggerSkillHeal();
+                }
+                if (e.key === 'b' || e.key === 'B') {
+                    toggleShop();
+                }
+                if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                    togglePause();
+                }
+            } 
+            else if (GameState.current === 'SHOP') {
+                if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+                    toggleShop();
+                }
+            }
+            else if (GameState.current === 'PAUSED') {
+                if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                    togglePause();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                GameState.keys.left = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                GameState.keys.right = false;
+            }
+        });
+
+        // ------------------ 行動端觸控事件 ------------------
+        const btnLeft = document.getElementById('btn-move-left');
+        const btnRight = document.getElementById('btn-move-right');
+        const btnJump = document.getElementById('btn-move-jump');
+
+        btnLeft.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            GameState.keys.left = true;
+        });
+        btnLeft.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            GameState.keys.left = false;
+        });
+
+        btnRight.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            GameState.keys.right = true;
+        });
+        btnRight.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            GameState.keys.right = false;
+        });
+
+        btnJump.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!GameState.player.isJumping && GameState.current === 'PLAYING') {
+                GameState.player.vy = -12.5;
+                GameState.player.isJumping = true;
+                AudioSynth.play('jump');
+            }
+        });
+
+        // ------------------ UI 按鈕點擊綁定 ------------------
+        document.getElementById('btn-start').addEventListener('click', startGame);
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            startGame();
+        });
+        
+        // 暫停選單綁定
+        document.getElementById('btn-pause').addEventListener('click', togglePause);
+        document.getElementById('btn-resume').addEventListener('click', togglePause);
+        document.getElementById('btn-pause-shop').addEventListener('click', () => {
+            togglePause();
+            toggleShop();
+        });
+
+        // 商店神殿雙選單綁定
+        document.getElementById('btn-open-shop').addEventListener('click', toggleShop);
+        document.getElementById('btn-close-shop').addEventListener('click', toggleShop);
+        document.getElementById('tab-shop-btn').addEventListener('click', () => switchOverlayTab('shop'));
+        document.getElementById('tab-rebirth-btn').addEventListener('click', () => switchOverlayTab('rebirth'));
+
+        // 裝備購買按鈕
+        document.getElementById('btn-buy-weapon').addEventListener('click', buyWeaponUpgrade);
+        document.getElementById('btn-buy-armor').addEventListener('click', buyArmorUpgrade);
+        document.getElementById('btn-buy-potion').addEventListener('click', buyPotion);
+
+        // 天賦神殿升級按鈕
+        document.getElementById('btn-talent-1').addEventListener('click', () => buyTalent('strength', (RebirthSystem.talents.strength + 1) * 5, 10));
+        document.getElementById('btn-talent-2').addEventListener('click', () => buyTalent('vigor', (RebirthSystem.talents.vigor + 1) * 5, 10));
+        document.getElementById('btn-talent-3').addEventListener('click', () => buyTalent('haste', (RebirthSystem.talents.haste + 1) * 8, 5));
+        document.getElementById('btn-talent-4').addEventListener('click', () => buyTalent('greed', (RebirthSystem.talents.greed + 1) * 5, 10));
+        document.getElementById('btn-talent-5').addEventListener('click', () => buyTalent('revival', (RebirthSystem.talents.revival + 1) * 15, 3));
+
+        // 命運抉擇按鈕
+        document.getElementById('btn-revive').addEventListener('click', performRevive);
+        document.getElementById('btn-rebirth').addEventListener('click', performRebirth);
+
+        // 技能按鈕點擊
+        document.getElementById('btn-attack').addEventListener('click', triggerNormalAttack);
+        document.getElementById('btn-skill-slash').addEventListener('click', triggerSkillSlash);
+        document.getElementById('btn-skill-fire').addEventListener('click', triggerSkillFire);
+        document.getElementById('btn-skill-heal').addEventListener('click', triggerSkillHeal);
+    </script>
+
+    <script>
+        // ------------------ 渲染畫布 ------------------
+        function render() {
+            ctx.save();
+            
+            // 震動處理
+            if (GameState.screenShake > 0) {
+                const shakeX = (Math.random() - 0.5) * GameState.screenShake;
+                const shakeY = (Math.random() - 0.5) * GameState.screenShake;
+                ctx.translate(shakeX, shakeY);
+            }
+
+            // 1. 多重 Parallax 背景
+            drawBackground();
+
+            // 2. 綠意盎然地表線
+            ctx.fillStyle = '#101624'; 
+            ctx.fillRect(0, GameState.groundY, canvas.width, canvas.height - GameState.groundY);
+            ctx.fillStyle = '#059669'; 
+            ctx.fillRect(0, GameState.groundY, canvas.width, 5);
+
+            // 3. 繪製怪物
+            GameState.enemies.forEach(enemy => {
+                drawEnemy(enemy);
+            });
+
+            // 4. 繪製子彈與投射法術
+            drawProjectiles();
+
+            // 5. 繪製玩家勇者
+            drawPlayer();
+
+            // 6. 粒子系統
+            drawParticles();
+
+            // 7. 損害飄浮字
+            drawFloatingTexts();
+
+            ctx.restore();
+        }
+
+        // ------------------ 主循環 ------------------
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            resizeCanvas();
+            GameState.groundY = canvas.height - 45;
+            
+            GameState.bgOffsets.sky = 0;
+            GameState.bgOffsets.mountains = 0;
+            GameState.bgOffsets.forest = 0;
+            GameState.bgOffsets.ground = 0;
+
+            // 初始化時將轉生靈魂點數顯示在主介面上
+            if (RebirthSystem.souls > 0) {
+                document.getElementById('start-rebirth-indicator').innerText = `[當前持有靈魂: ${RebirthSystem.souls} 點]`;
+            }
+
+            gameLoop();
+        };
+    </script>
+
+</body>
+</html>
